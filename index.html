@@ -4,12 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Geometric Survivor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div id="main-menu" class="fullscreen-menu">
         <h1 class="game-title">GEOMETRIC<br>SURVIVOR</h1>
+        <p style="color: rgba(0,245,255,0.45); font-size: 13px; letter-spacing: 3px; margin: -20px 0 20px; font-family: 'Exo 2', sans-serif; text-transform: uppercase;">— Survive. Level Up. Dominate. —</p>
         <input type="text" id="player-name-input" placeholder="INSERISCI NOME..." maxlength="12" onkeyup="savePlayerName()" onblur="savePlayerName()">
         <button class="menu-btn" onclick="startGame()">▶️ GIOCA</button>
         <button class="menu-btn" onclick="showCharacterSelect()">👥 PERSONAGGI</button>
@@ -26,14 +29,14 @@
 
     <div id="equipment-select" class="fullscreen-menu" style="display: none;">
         <button class="back-btn" onclick="backToMenu()">⬅</button>
-        <h2>Armeria <span style="color:#bf00ff; text-shadow: 0 0 10px #bf00ff;">💎 <span id="menu-crystal-count">0</span></span></h2>
+        <h2 style="font-family:'Orbitron',monospace; letter-spacing:3px; font-size:22px;">Armeria <span style="color:#bf00ff; text-shadow: 0 0 10px #bf00ff;">💎 <span id="menu-crystal-count">0</span></span></h2>
         <div id="double-amulet-container" style="margin-bottom: 15px;"></div>
         <div class="equip-section" id="equip-container"></div>
     </div>
 
     <div id="character-select" class="fullscreen-menu" style="display: none;">
         <button class="back-btn" onclick="backToMenu()">⬅</button>
-        <h2>Scegli il tuo Eroe <span style="color:#bf00ff; font-size:20px;">(💎 <span id="char-crystal-count">0</span>)</span></h2>
+        <h2 style="font-family:'Orbitron',monospace; letter-spacing:2px; font-size:20px;">Scegli il tuo Eroe <span style="color:#bf00ff; font-size:16px;">(💎 <span id="char-crystal-count">0</span>)</span></h2>
         <div id="char-cards-container" class="char-container"></div>
     </div>
 
@@ -125,4 +128,3 @@
     <script type="module" src="main.js"></script>
 </body>
 </html>
-
