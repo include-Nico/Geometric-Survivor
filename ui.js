@@ -21,10 +21,15 @@ export function closeAllMenuModals() {
     document.getElementById('settings-modal').style.display = 'none';
     document.getElementById('missions-modal').style.display = 'none';
     document.getElementById('battlepass-modal').style.display = 'none';
+    // Riattiva i bottoni in alto quando si chiude un modale
+    document.querySelectorAll('.top-icon-btn').forEach(btn => btn.style.display = 'flex');
 }
 
 export function showBattlePassModal() {
     closeAllMenuModals();
+    // Nascondi i bottoni in alto
+    document.querySelectorAll('.top-icon-btn').forEach(btn => btn.style.display = 'none');
+
     let container = document.getElementById('bp-tiers-container'); document.getElementById('bp-bosses-count').innerText = battlePass.bosses; document.getElementById('bp-progress-fill').style.width = Math.min((battlePass.bosses / 150) * 100, 100) + '%'; container.innerHTML = '';
     const tiers = [ { req: 15, rew: 200 }, { req: 30, rew: 400 }, { req: 50, rew: 600 }, { req: 100, rew: 800 }, { req: 150, rew: 1000 } ];
     tiers.forEach(t => {
@@ -35,10 +40,16 @@ export function showBattlePassModal() {
     document.getElementById('battlepass-modal').style.display = 'block';
 }
 
-export function closeBattlePassModal() { document.getElementById('battlepass-modal').style.display = 'none'; }
+export function closeBattlePassModal() { 
+    document.getElementById('battlepass-modal').style.display = 'none'; 
+    document.querySelectorAll('.top-icon-btn').forEach(btn => btn.style.display = 'flex');
+}
 
 export function showMissionsModal() {
     closeAllMenuModals();
+    // Nascondi i bottoni in alto
+    document.querySelectorAll('.top-icon-btn').forEach(btn => btn.style.display = 'none');
+
     let container = document.getElementById('missions-container'); container.innerHTML = '';
     let m1Prog = Math.min(dailyMissions.bossesKilled, 5); let m1Done = m1Prog >= 5;
     container.innerHTML += `<div class="mission-card"><p class="mission-title">💀 Uccidi 5 Boss</p><p class="mission-reward">Premio: 100 💎</p><div class="mission-progress-bg"><div class="mission-progress-fill" style="width: ${(m1Prog/5)*100}%;"></div></div><p style="font-size:12px; margin-top:0; text-align:right;">${m1Prog}/5</p>${dailyMissions.claim1 ? '<button class="btn-claim" disabled>Completata ✅</button>' : `<button class="btn-claim" ${m1Done ? '' : 'disabled'} onclick="claimMission(1, 100)">Riscuoti</button>`}</div>`;
@@ -49,10 +60,28 @@ export function showMissionsModal() {
     document.getElementById('missions-modal').style.display = 'block';
 }
 
-export function closeMissionsModal() { document.getElementById('missions-modal').style.display = 'none'; }
+export function closeMissionsModal() { 
+    document.getElementById('missions-modal').style.display = 'none'; 
+    document.querySelectorAll('.top-icon-btn').forEach(btn => btn.style.display = 'flex');
+}
 
-export function showSettingsModal() { closeAllMenuModals(); document.getElementById('stat-enemies').innerText = gameStats.enemiesKilled; document.getElementById('stat-bosses').innerText = gameStats.bossesKilled; document.getElementById('stat-maxlevel').innerText = gameStats.maxLevelReached; document.getElementById('stat-spent').innerText = gameStats.crystalsSpent; document.getElementById('settings-modal').style.display = 'block'; }
-export function closeSettingsModal() { document.getElementById('settings-modal').style.display = 'none'; }
+export function showSettingsModal() { 
+    closeAllMenuModals(); 
+    // Nascondi i bottoni in alto
+    document.querySelectorAll('.top-icon-btn').forEach(btn => btn.style.display = 'none');
+
+    document.getElementById('stat-enemies').innerText = gameStats.enemiesKilled; 
+    document.getElementById('stat-bosses').innerText = gameStats.bossesKilled; 
+    document.getElementById('stat-maxlevel').innerText = gameStats.maxLevelReached; 
+    document.getElementById('stat-spent').innerText = gameStats.crystalsSpent; 
+    document.getElementById('settings-modal').style.display = 'block'; 
+}
+
+export function closeSettingsModal() { 
+    document.getElementById('settings-modal').style.display = 'none'; 
+    document.querySelectorAll('.top-icon-btn').forEach(btn => btn.style.display = 'flex');
+}
+
 export function switchSettingsTab(tabName) { document.getElementById('tab-btn-cheat').classList.remove('active'); document.getElementById('tab-btn-stats').classList.remove('active'); document.getElementById('tab-content-cheat').style.display = 'none'; document.getElementById('tab-content-stats').style.display = 'none'; document.getElementById('tab-btn-' + tabName).classList.add('active'); document.getElementById('tab-content-' + tabName).style.display = 'block'; }
 
 export function showEquipmentMenu() { document.getElementById('main-menu').style.display = 'none'; document.getElementById('equipment-select').style.display = 'flex'; updateEquipMenuUI(); }
