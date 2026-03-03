@@ -406,7 +406,7 @@ function update() {
                                 if (e.hp <= 0 && !e.dead) { e.dead = true; handleEnemyDeath(e, -1); }
                             }
                         });
-                        rocks.forEach(r => { if (r.hp > 0 && distToSegment(r.x, r.y, spawnX, spawnY, endX, endY) < r.size + 20) { r.hp -= w.currentDamage; if(r.hp <= 0 && !r.dead){ r.dead=true; gems.push({ x: r.x, y: r.y, isSuper: true }); } } });
+                        rocks.forEach(r => { if (r.hp > 0 && !r.isMageStone && distToSegment(r.x, r.y, spawnX, spawnY, endX, endY) < r.size + 20) { r.hp -= w.currentDamage; if(r.hp <= 0 && !r.dead){ r.dead=true; gems.push({ x: r.x, y: r.y, isSuper: true }); } } });
                     }
                 } else if (w.id === 'fireball_wand') {
                     bullets.push({ x: spawnX, y: spawnY, startX: spawnX, startY: spawnY, vx: cosA * w.speed, vy: sinA * w.speed, damage: w.currentDamage, size: w.bulletSize, color: w.color, range: w.range, weaponId: w.id, level: w.level, poisonDmg: 0, explodeRadius: w.explodeRadius || 80 });
@@ -484,6 +484,7 @@ function update() {
         let hitRock = false;
         for (let ri = rocks.length - 1; ri >= 0; ri--) { 
             let r = rocks[ri]; 
+            if (r.isMageStone) continue; // I proiettili del giocatore attraversano le pietre del mago
             if (distToSegment(r.x, r.y, oldX, oldY, b.x, b.y) < r.size + b.size/2 + 5) { 
                 if (b.weaponId === 'granata') { explosions.push({x: b.x, y: b.y, radius: 60 + (b.level * 20), damage: b.damage, life: 20, maxLife: 20, type: 'fire'}); } 
                 else if (b.weaponId === 'freezer') { explosions.push({x: b.x, y: b.y, radius: 45 + (b.level * 10), damage: 0, life: 180, maxLife: 180, type: 'ice'}); } 
@@ -504,12 +505,12 @@ function update() {
         else if (exp.type === 'poison') {
             if (exp.life === exp.maxLife) { 
                 enemies.forEach(e => { if (!e.dead && Math.hypot(e.x - exp.x, e.y - exp.y) < exp.radius + e.size) { e.hp -= exp.damage; e.hitTimer = 5; e.poisonTimer = 30; e.poisonDmg = exp.damage; if (e.hp <= 0 && !e.dead) { e.dead = true; handleEnemyDeath(e, -1); } } });
-                rocks.forEach(r => { if (!r.dead && Math.hypot(r.x - exp.x, r.y - exp.y) < exp.radius + r.size) { r.hp -= exp.damage; if (r.hp <= 0 && !r.dead) { r.dead=true; gems.push({ x: r.x, y: r.y, isSuper: true }); } } });
+                rocks.forEach(r => { if (!r.dead && !r.isMageStone && Math.hypot(r.x - exp.x, r.y - exp.y) < exp.radius + r.size) { r.hp -= exp.damage; if (r.hp <= 0 && !r.dead) { r.dead=true; gems.push({ x: r.x, y: r.y, isSuper: true }); } } });
             }
         } else {
             if (exp.life === exp.maxLife) { 
                 enemies.forEach(e => { if (!e.dead && Math.hypot(e.x - exp.x, e.y - exp.y) < exp.radius + e.size) { e.hp -= exp.damage; e.hitTimer = 5; if (applyIce) { e.frozenTimer = 180; e.speed = e.originalSpeed * 0.2; } if (applyFire) { e.burnTimer = 180; } if (e.hp <= 0 && !e.dead) { e.dead = true; handleEnemyDeath(e, -1); } } });
-                rocks.forEach(r => { if (!r.dead && Math.hypot(r.x - exp.x, r.y - exp.y) < exp.radius + r.size) { r.hp -= exp.damage; if (r.hp <= 0 && !r.dead) { r.dead=true; gems.push({ x: r.x, y: r.y, isSuper: true }); } } });
+                rocks.forEach(r => { if (!r.dead && !r.isMageStone && Math.hypot(r.x - exp.x, r.y - exp.y) < exp.radius + r.size) { r.hp -= exp.damage; if (r.hp <= 0 && !r.dead) { r.dead=true; gems.push({ x: r.x, y: r.y, isSuper: true }); } } });
             }
         }
         exp.life--;
@@ -605,7 +606,21 @@ function update() {
         }
         
         for (let r of rocks) {
-            if (!r.dead) { let distToRock = Math.hypot(e.x - r.x, e.y - r.y); if (distToRock < e.size + r.size) { let pushA = Math.atan2(e.y - r.y, e.x - r.x); let overlap = (e.size + r.size) - distToRock; e.x += Math.cos(pushA) * overlap; e.y += Math.sin(pushA) * overlap; } }
+            if (!r.dead) {
+                let distToRock = Math.hypot(e.x - r.x, e.y - r.y);
+                if (distToRock < e.size + r.size) {
+                    // Spingi il nemico fuori dalla roccia
+                    let pushA = Math.atan2(e.y - r.y, e.x - r.x);
+                    let overlap = (e.size + r.size) - distToRock;
+                    e.x += Math.cos(pushA) * overlap;
+                    e.y += Math.sin(pushA) * overlap;
+                    // I nemici danneggiano le pietre del mago col contatto
+                    if (r.isMageStone && frameCount % 30 === 0) {
+                        r.hp -= Math.max(1, Math.floor(e.speed * 3));
+                        if (r.hp <= 0) { r.dead = true; }
+                    }
+                }
+            }
         }
 
         if (e.hitTimer > 0) e.hitTimer--;
@@ -635,7 +650,21 @@ function update() {
                 if (e.stateTimer % 15 === 0) { let shootA = Math.atan2(player.y - e.y, player.x - e.x); enemyBullets.push({ x: e.x, y: e.y, vx: Math.cos(shootA)*8, vy: Math.sin(shootA)*8, damage: 20, isFireball: true }); e.shotsFired++; if (e.shotsFired >= totalShots) { e.state = 'idle'; e.stateTimer = 0; } }
             }
         } else {
-            e.x += Math.cos(angle) * e.speed; e.y += Math.sin(angle) * e.speed; 
+            // Nemici normali: se c'è una pietra del mago più vicina del giocatore, si dirigono verso quella
+            let moveTarget = { x: player.x, y: player.y };
+            let distToPlayer = Math.hypot(player.x - e.x, player.y - e.y);
+            let closestStoneDist = Infinity;
+            for (let r of rocks) {
+                if (r.isMageStone && !r.dead) {
+                    let d = Math.hypot(r.x - e.x, r.y - e.y);
+                    if (d < distToPlayer && d < closestStoneDist) {
+                        closestStoneDist = d;
+                        moveTarget = r;
+                    }
+                }
+            }
+            let moveAngle = Math.atan2(moveTarget.y - e.y, moveTarget.x - e.x);
+            e.x += Math.cos(moveAngle) * e.speed; e.y += Math.sin(moveAngle) * e.speed;
             if (e.type === 'shooter') { e.fireTimer++; if (e.fireTimer >= 100) { enemyBullets.push({ x: e.x, y: e.y, vx: Math.cos(angle)*5, vy: Math.sin(angle)*5, damage: 10 }); e.fireTimer = 0; } } 
         }
 
