@@ -177,7 +177,7 @@ function levelUp() {
     
     if (level % 5 === 0 && player.lastBossLevel !== level) { 
         player.lastBossLevel = level; let bossHp = 3000 * (level / 5); let bossSpeed = 0.8 + (level * 0.02); 
-        enemies.push({ x: player.x, y: player.y - 600, hp: bossHp, maxHp: bossHp, speed: bossSpeed, originalSpeed: bossSpeed, size: 45, type: 'miniboss', color: 'gold', fireTimer: 0, hitTimer: 0, frozenTimer: 0, burnTimer: 0, poisonTimer: 0, dead: false, advanced: true, state: 'idle', stateTimer: 0, targetX: 0, targetY: 0, phaseMultiplier: Math.floor(level/5) }); 
+        enemies.push({ x: player.x, y: player.y - 600, hp: bossHp, maxHp: bossHp, speed: bossSpeed, originalSpeed: bossSpeed, size: 45, type: 'miniboss', color: 'gold', fireTimer: 0, hitTimer: 0, frozenTimer: 0, burnTimer: 0, poisonTimer: 0, electrifiedTimer: 0, dead: false, advanced: true, state: 'idle', stateTimer: 0, targetX: 0, targetY: 0, phaseMultiplier: Math.floor(level/5) }); 
         bossArena = { active: true, x: player.x, y: player.y, radius: 900 }; setTimeout(() => { showItemFeedback("⚠️ ARENA DEL TITANO! ⚠️", "#ff0000"); }, 500); 
     } 
 }
@@ -336,7 +336,6 @@ function update() {
         m.x += (tx - m.x) * 0.1; m.y += (ty - m.y) * 0.1; m.fireTimer++;
         if (m.fireTimer >= 35) { 
             let targets = enemies.filter(t => Math.hypot(t.x - m.x, t.y - m.y) <= 500); 
-            // I MiniMe sparano ai sassi normali se non ci sono nemici
             if (targets.length === 0) {
                 targets = rocks.filter(r => !r.isMageStone && Math.hypot(r.x - m.x, r.y - m.y) <= 500);
             }
@@ -376,7 +375,6 @@ function update() {
             }
             
             let targets = enemies.filter(t => Math.hypot(t.x - player.x, t.y - player.y) <= w.range);
-            // Mira ai sassi normali per exp se non ci sono nemici nelle vicinanze
             if (targets.length === 0) {
                 targets = rocks.filter(r => !r.isMageStone && Math.hypot(r.x - player.x, r.y - player.y) <= w.range);
             }
@@ -407,11 +405,46 @@ function update() {
                         });
                         rocks.forEach(r => { if (r.hp > 0 && !r.isMageStone && distToSegment(r.x, r.y, spawnX, spawnY, endX, endY) < r.size + 20) { r.hp -= w.currentDamage; if(r.hp <= 0 && !r.dead){ r.dead=true; gems.push({ x: r.x, y: r.y, isSuper: true }); } } });
                     }
+                } else if (w.id === 'electric_orb') {
+                    // Saetta Istantanea - Logica Scossa a Catena
+                    let baseDmg = w.currentDamage * 0.45; // Ridotto per NON instakillare ai primi livelli
+                    if (w.level >= 6) baseDmg *= 2; // Recupera danno letale ad alti livelli
+                    
+                    let maxChain = 3 + Math.floor((w.level - 1) / 2); // 3 rimbalzi a Lv1
+                    let chainRange = w.chainRange || 180;
+                    
+                    closest.hp -= baseDmg; closest.hitTimer = 5; closest.electrifiedTimer = 20;
+                    if (closest.hp <= 0 && !closest.dead) { closest.dead = true; handleEnemyDeath(closest, -1); }
+                    
+                    // Disegna l'arco dal giocatore al primo bersaglio
+                    electricArcs.push({ x1: spawnX, y1: spawnY, x2: closest.x, y2: closest.y, life: 18, maxLife: 18 });
+                    
+                    let lastHit = closest;
+                    let alreadyHit = new Set([closest]);
+                    
+                    // Salti della catena
+                    for (let c = 0; c < maxChain; c++) {
+                        let nextTarget = null; let bestDist = Infinity;
+                        enemies.forEach(en => {
+                            if (!en.dead && !alreadyHit.has(en)) {
+                                let d = Math.hypot(en.x - lastHit.x, en.y - lastHit.y);
+                                if (d < chainRange && d < bestDist) { bestDist = d; nextTarget = en; }
+                            }
+                        });
+                        if (!nextTarget) break; 
+                        
+                        nextTarget.hp -= baseDmg * 0.85; // il danno scala leggermente ad ogni salto
+                        nextTarget.hitTimer = 5; 
+                        nextTarget.electrifiedTimer = 20; // Visual effect del nemico in shock
+                        
+                        if (nextTarget.hp <= 0 && !nextTarget.dead) { nextTarget.dead = true; handleEnemyDeath(nextTarget, -1); }
+                        
+                        electricArcs.push({ x1: lastHit.x, y1: lastHit.y, x2: nextTarget.x, y2: nextTarget.y, life: 18, maxLife: 18 });
+                        alreadyHit.add(nextTarget);
+                        lastHit = nextTarget;
+                    }
                 } else if (w.id === 'fireball_wand') {
                     bullets.push({ x: spawnX, y: spawnY, startX: spawnX, startY: spawnY, vx: cosA * w.speed, vy: sinA * w.speed, damage: w.currentDamage, size: w.bulletSize, color: w.color, range: w.range, weaponId: w.id, level: w.level, poisonDmg: 0, explodeRadius: w.explodeRadius || 80 });
-                } else if (w.id === 'electric_orb') {
-                    let chainMax = (w.chainMax || 4) + Math.floor((w.level - 1) * 0.5);
-                    bullets.push({ x: spawnX, y: spawnY, startX: spawnX, startY: spawnY, vx: cosA * w.speed, vy: sinA * w.speed, damage: w.currentDamage, size: w.bulletSize, color: w.color, range: w.range, weaponId: w.id, level: w.level, poisonDmg: 0, chainRange: w.chainRange || 150, chainDamage: w.chainDamage || 10, chainMax: chainMax });
                 } else {
                     bullets.push({ x: spawnX, y: spawnY, startX: spawnX, startY: spawnY, vx: cosA * w.speed, vy: sinA * w.speed, damage: w.currentDamage, size: w.bulletSize, color: w.color, range: w.range, weaponId: w.id, level: w.level, poisonDmg: w.poisonDamage || 0 });
                 }
@@ -440,47 +473,15 @@ function update() {
             }
             bullets.splice(i, 1); continue; 
         }
-        if (b.weaponId === 'electric_orb') {
-            let hitEnemy = false;
-            for (let ei2 = enemies.length - 1; ei2 >= 0; ei2--) {
-                let et = enemies[ei2];
-                if (!et.dead && Math.hypot(b.x - et.x, b.y - et.y) < et.size + b.size) {
-                    et.hp -= b.damage; et.hitTimer = 5;
-                    et.frozenTimer = 40; et.speed = et.originalSpeed * 0.5;
-                    if (et.hp <= 0 && !et.dead) { et.dead = true; handleEnemyDeath(et, ei2); }
-                    let maxChain = b.chainMax || 3;
-                    let chainRange = b.chainRange || 150;
-                    let lastHit = et;
-                    let alreadyHit = new Set([et]);
-                    for (let c = 0; c < maxChain; c++) {
-                        let nextTarget = null; let bestDist = Infinity;
-                        enemies.forEach(en => {
-                            if (!en.dead && !alreadyHit.has(en)) {
-                                let d = Math.hypot(en.x - lastHit.x, en.y - lastHit.y);
-                                if (d < chainRange && d < bestDist) { bestDist = d; nextTarget = en; }
-                            }
-                        });
-                        if (!nextTarget) break;
-                        let dmg = (b.chainDamage || 10) * Math.pow(0.75, c);
-                        nextTarget.hp -= dmg; nextTarget.hitTimer = 5;
-                        nextTarget.frozenTimer = 35; nextTarget.speed = nextTarget.originalSpeed * 0.5;
-                        if (nextTarget.hp <= 0 && !nextTarget.dead) { nextTarget.dead = true; handleEnemyDeath(nextTarget, -1); }
-                        electricArcs.push({ x1: lastHit.x, y1: lastHit.y, x2: nextTarget.x, y2: nextTarget.y, life: 14, maxLife: 14 });
-                        alreadyHit.add(nextTarget);
-                        lastHit = nextTarget;
-                    }
-                    hitEnemy = true;
-                    bullets.splice(i, 1); break;
-                }
-            }
-            if (hitEnemy) continue;
-        }
+
+        // Il check di collisione della fireball
         if (b.weaponId === 'fireball_wand') {
             let hitEnemy = false;
             for (let ei2 = enemies.length - 1; ei2 >= 0; ei2--) {
                 let et = enemies[ei2];
                 if (!et.dead && Math.hypot(b.x - et.x, b.y - et.y) < et.size + b.size) {
                     let expR = (b.explodeRadius || 80) + ((b.level || 1) - 1) * 20;
+                    // Genera esplosione infuocata al contatto col nemico
                     explosions.push({x: b.x, y: b.y, radius: expR, damage: b.damage, life: 25, maxLife: 25, type: 'fire'});
                     hitEnemy = true;
                     bullets.splice(i, 1); break;
@@ -488,13 +489,18 @@ function update() {
             }
             if (hitEnemy) continue;
         }
+
         let hitRock = false;
         for (let ri = rocks.length - 1; ri >= 0; ri--) { 
             let r = rocks[ri]; 
-            if (r.isMageStone) continue; // I proiettili non collidono mai con le pietre del mago
+            if (r.isMageStone) continue; 
             if (distToSegment(r.x, r.y, oldX, oldY, b.x, b.y) < r.size + b.size/2 + 5) { 
                 if (b.weaponId === 'granata') { explosions.push({x: b.x, y: b.y, radius: 60 + (b.level * 20), damage: b.damage, life: 20, maxLife: 20, type: 'fire'}); } 
                 else if (b.weaponId === 'freezer') { explosions.push({x: b.x, y: b.y, radius: 45 + (b.level * 10), damage: 0, life: 180, maxLife: 180, type: 'ice'}); } 
+                else if (b.weaponId === 'fireball_wand') { 
+                    let expR = (b.explodeRadius || 80) + ((b.level || 1) - 1) * 20;
+                    explosions.push({x: b.x, y: b.y, radius: expR, damage: b.damage, life: 25, maxLife: 25, type: 'fire'}); 
+                }
                 else { r.hp -= b.damage; if (r.hp <= 0 && !r.dead) { r.dead=true; gems.push({ x: r.x, y: r.y, isSuper: true }); } }
                 bullets.splice(i, 1); hitRock = true; break; 
             } 
@@ -515,6 +521,7 @@ function update() {
                 rocks.forEach(r => { if (!r.dead && !r.isMageStone && Math.hypot(r.x - exp.x, r.y - exp.y) < exp.radius + r.size) { r.hp -= exp.damage; if (r.hp <= 0 && !r.dead) { r.dead=true; gems.push({ x: r.x, y: r.y, isSuper: true }); } } });
             }
         } else {
+            // Effettua il danno dell'esplosione fire ad area
             if (exp.life === exp.maxLife) { 
                 enemies.forEach(e => { if (!e.dead && Math.hypot(e.x - exp.x, e.y - exp.y) < exp.radius + e.size) { e.hp -= exp.damage; e.hitTimer = 5; if (applyIce) { e.frozenTimer = 180; e.speed = e.originalSpeed * 0.2; } if (applyFire) { e.burnTimer = 180; } if (e.hp <= 0 && !e.dead) { e.dead = true; handleEnemyDeath(e, -1); } } });
                 rocks.forEach(r => { if (!r.dead && !r.isMageStone && Math.hypot(r.x - exp.x, r.y - exp.y) < exp.radius + r.size) { r.hp -= exp.damage; if (r.hp <= 0 && !r.dead) { r.dead=true; gems.push({ x: r.x, y: r.y, isSuper: true }); } } });
@@ -587,7 +594,7 @@ function update() {
                 let type = 'melee'; let color = 'red'; let hp = 10 + (level * 5); let speed = 1.5 + Math.random(); let size = 12; 
                 if (level >= 2 && Math.random() < 0.25) { type = 'shooter'; color = 'purple'; speed = 0.8; hp = hp * 0.8; } 
                 else if (level >= 4 && Math.random() < 0.15) { type = 'tank'; color = 'darkred'; hp = hp * 2; speed = 0.6; size = 22; } 
-                enemies.push({ x: ex, y: ey, hp: hp, maxHp: hp, speed: speed, originalSpeed: speed, size: size, type: type, color: color, fireTimer: 0, hitTimer: 0, frozenTimer: 0, burnTimer: 0, poisonTimer: 0, dead: false }); 
+                enemies.push({ x: ex, y: ey, hp: hp, maxHp: hp, speed: speed, originalSpeed: speed, size: size, type: type, color: color, fireTimer: 0, hitTimer: 0, frozenTimer: 0, burnTimer: 0, poisonTimer: 0, electrifiedTimer: 0, dead: false }); 
             } 
         } 
     }
@@ -625,6 +632,7 @@ function update() {
         }
 
         if (e.hitTimer > 0) e.hitTimer--;
+        if (e.electrifiedTimer > 0) e.electrifiedTimer--; // Timer per effetto visivo "shock"
         if (e.frozenTimer > 0) { e.frozenTimer--; if (e.frozenTimer <= 0) e.speed = e.originalSpeed; }
         if (e.burnTimer > 0) { e.burnTimer--; if (e.burnTimer % 30 === 0) { e.hp -= 10; e.hitTimer = 5; if(e.hp <= 0 && !e.dead) { e.dead=true; handleEnemyDeath(e, ei); continue; } } }
         if (e.poisonTimer > 0) { e.poisonTimer--; if (e.poisonTimer % 20 === 0) { e.hp -= e.poisonDmg; e.hitTimer = 5; if(e.hp <= 0 && !e.dead) { e.dead=true; handleEnemyDeath(e, ei); continue; } } }
@@ -678,6 +686,9 @@ function update() {
                 if (b.weaponId === 'granata') { explosions.push({x: b.x, y: b.y, radius: 60 + (b.level * 20), damage: b.damage, life: 20, maxLife: 20, type: 'fire'}); } 
                 else if (b.weaponId === 'freezer') { explosions.push({x: b.x, y: b.y, radius: 45 + (b.level * 10), damage: 0, life: 180, maxLife: 180, type: 'ice'}); } 
                 else if (b.weaponId === 'cerbottana') { e.hp -= b.damage; e.hitTimer = 5; e.poisonTimer = 300; e.poisonDmg = b.poisonDmg + (b.level * 2); }
+                else if (b.weaponId === 'fireball_wand') { 
+                    // Il danno esplosivo gestisce tutto, non servono i danni sul target principale
+                }
                 else { e.hp -= b.damage; e.hitTimer = 5; }
                 bullets.splice(bi, 1); 
             } 
@@ -713,14 +724,6 @@ function drawProjectile(b, camX, camY) {
         grad.addColorStop(0, '#ffff00'); grad.addColorStop(0.4, '#ff4500'); grad.addColorStop(1, 'rgba(200,0,0,0)');
         ctx.fillStyle = grad; ctx.shadowBlur = 20; ctx.shadowColor = '#ff4500';
         ctx.beginPath(); ctx.arc(px, py, b.size * pulse, 0, Math.PI*2); ctx.fill();
-    }
-    else if (b.weaponId === 'electric_orb') {
-        let grad = ctx.createRadialGradient(px, py, b.size*0.1, px, py, b.size);
-        grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.4, '#00ccff'); grad.addColorStop(1, 'rgba(0,80,255,0)');
-        ctx.fillStyle = grad; ctx.shadowBlur = 25; ctx.shadowColor = '#00ccff';
-        ctx.beginPath(); ctx.arc(px, py, b.size, 0, Math.PI*2); ctx.fill();
-        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
-        for(let i=0; i<4; i++) { let a=(i/4)*Math.PI*2 + frameCount*0.2; ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px+Math.cos(a)*b.size*1.3, py+Math.sin(a)*b.size*1.3); ctx.stroke(); }
     }
     else { ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(px, py, b.size, 0, Math.PI*2); ctx.fill(); }
     ctx.shadowBlur = 0;
@@ -772,11 +775,9 @@ function draw() {
             ctx.shadowBlur = 10; ctx.shadowColor = '#8B6040';
             ctx.beginPath(); ctx.arc(mx, my, r.size, 0, Math.PI*2); ctx.fill(); ctx.stroke();
             ctx.shadowBlur = 0;
-            // Niente barra della vita per le rocce del mago
         } else {
             ctx.fillStyle = '#666'; ctx.strokeStyle = '#444'; ctx.lineWidth = 4;
             ctx.beginPath(); ctx.arc(mx, my, r.size, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-            // Barra della vita nascosta per le rocce normali in base alle tue istruzioni
         }
     });
     
@@ -808,7 +809,14 @@ function draw() {
         let alpha = exp.life / exp.maxLife; 
         if(exp.type === 'ice') { ctx.fillStyle = `rgba(0, 255, 255, ${alpha * 0.4})`; ctx.beginPath(); ctx.arc(exp.x - camX, exp.y - camY, exp.radius, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = `rgba(100, 255, 255, ${alpha})`; ctx.lineWidth = 2; ctx.stroke(); } 
         else if(exp.type === 'poison') { ctx.fillStyle = `rgba(0, 255, 0, ${alpha * 0.4})`; ctx.beginPath(); ctx.arc(exp.x - camX, exp.y - camY, exp.radius, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = `rgba(0, 200, 0, ${alpha})`; ctx.lineWidth = 3; ctx.stroke(); } 
-        else { ctx.fillStyle = `rgba(255, 80, 0, ${alpha * 0.5})`; ctx.beginPath(); ctx.arc(exp.x - camX, exp.y - camY, exp.radius, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = `rgba(255, 200, 0, ${alpha})`; ctx.lineWidth = 3; ctx.stroke(); }
+        else { 
+            // Grafica ad area del Fireball potenziata con bagliore interno
+            ctx.fillStyle = `rgba(255, 80, 0, ${alpha * 0.5})`; 
+            ctx.beginPath(); ctx.arc(exp.x - camX, exp.y - camY, exp.radius, 0, Math.PI*2); ctx.fill(); 
+            ctx.strokeStyle = `rgba(255, 200, 0, ${alpha})`; ctx.lineWidth = 3; ctx.stroke();
+            ctx.fillStyle = `rgba(255, 255, 100, ${alpha * 0.8})`; 
+            ctx.beginPath(); ctx.arc(exp.x - camX, exp.y - camY, exp.radius * (1 - alpha), 0, Math.PI*2); ctx.fill();
+        }
     });
 
     chests.forEach(c => { 
@@ -861,8 +869,11 @@ function draw() {
 
     enemies.forEach(e => { 
         let bx = e.x - camX; let by = e.y - camY; 
-        let currentFill = e.color; 
-        if (e.hitTimer > 0) currentFill = "white"; 
+        
+        let currentFill = e.color;
+        // La visuale dell'effetto 'shockato' (lampeggia chiaro ciano e bianco)
+        if (e.electrifiedTimer > 0) currentFill = (frameCount % 4 < 2) ? "#00ffff" : "#ffffff";
+        else if (e.hitTimer > 0) currentFill = "white"; 
         else if (e.frozenTimer > 0) currentFill = "#aaddff"; 
         else if (e.poisonTimer > 0) currentFill = "#800080"; 
         else if (e.burnTimer > 0) currentFill = "#ff6600";
@@ -874,6 +885,15 @@ function draw() {
         if(e.type === 'shooter') { ctx.fillStyle = '#555'; let handY = by - bodyH/2 - armOffset + armH - 4; ctx.fillRect(bx + bodyW/2 + armW/2, handY, e.size*1.5, 5); ctx.fillRect(bx + bodyW/2 + armW/2, handY, 5, 10); } 
         ctx.fillStyle = currentFill; ctx.fillRect(bx - bodyW/2, by - bodyH/2, bodyW, bodyH); ctx.beginPath(); ctx.arc(bx, by - bodyH/2 - e.size*0.3, e.size * 0.9, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0; 
         if(e.type === 'miniboss') { ctx.fillStyle = 'black'; ctx.fillRect(bx - 40, by - e.size*2.5, 80, 8); ctx.fillStyle = 'red'; ctx.fillRect(bx - 40, by - e.size*2.5, 80 * (Math.max(0, e.hp)/e.maxHp), 8); } 
+
+        // Scintille visive per i nemici elettrificati
+        if (e.electrifiedTimer > 0) {
+            ctx.strokeStyle = "cyan"; ctx.lineWidth = 2; ctx.beginPath();
+            let r = e.size * 1.5;
+            ctx.moveTo(bx - r + Math.random()*r, by - r + Math.random()*r);
+            ctx.lineTo(bx + Math.random()*r, by + Math.random()*r);
+            ctx.stroke();
+        }
 
         if (e.type === 'miniboss' && e.advanced && e.state === 'telegraph_dash') {
             let tx = e.targetX - camX; let ty = e.targetY - camY;
@@ -894,7 +914,6 @@ function draw() {
             if (w.fireTimer < 20) { angle = 0 - (Math.PI / 2) * (w.fireTimer / 20); }
         } else {
             let targets = enemies.filter(t => Math.hypot(t.x - player.x, t.y - player.y) <= w.range);
-            // Rotazione corretta verso sassi normali se non ci sono nemici (assicurandoci escluda pietre mago)
             if (targets.length === 0) {
                 targets = rocks.filter(r => !r.isMageStone && Math.hypot(r.x - player.x, r.y - player.y) <= w.range);
             }
@@ -940,19 +959,15 @@ function draw() {
 
     ctx.font = "bold 20px Arial"; ctx.fillStyle = "white"; ctx.shadowBlur = 5; ctx.shadowColor = "black"; ctx.fillText(activePlayerName, screenCenterX, screenCenterY - pBodyH/2 - player.size - 25); ctx.shadowBlur = 0;
 
-    // Cappello da Mago per il personaggio 3 (Il Mago) - Rimpicciolito
     if (player.charId === 3) {
         let hatColor = '#4a2a8a';
         if (eColor) { hatColor = eColor; } 
-        let hatX = screenCenterX; let hatY = screenCenterY - pBodyH/2 - player.size * 0.45; // abbassato leggermente
+        let hatX = screenCenterX; let hatY = screenCenterY - pBodyH/2 - player.size * 0.45;
         ctx.fillStyle = hatColor; ctx.shadowBlur = 10; ctx.shadowColor = hatColor;
-        // Tesa del cappello ridotta (da 1.3 a 1.0)
         ctx.beginPath(); ctx.ellipse(hatX, hatY + 4, player.size * 1.0, 4, 0, 0, Math.PI*2); ctx.fill();
-        // Corpo conico del cappello ristretto (da 0.9 a 0.7) e abbassato (da 1.8 a 1.4)
         ctx.beginPath(); ctx.moveTo(hatX - player.size * 0.7, hatY + 4);
         ctx.lineTo(hatX, hatY - player.size * 1.4);
         ctx.lineTo(hatX + player.size * 0.7, hatY + 4); ctx.fill();
-        // Stellina proporzionata
         ctx.fillStyle = '#ffff00'; ctx.shadowColor = '#ffff00';
         ctx.font = `${player.size * 0.6}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText('★', hatX, hatY - player.size * 1.2);
@@ -976,7 +991,6 @@ function draw() {
 }
 
 // --- ESPOSIZIONE GLOBALE PER HTML (LOGICA E NEGOZIO) ---
-// --- BINDING PULSANTI (evita onclick nell'HTML con moduli ES) ---
 function bindButtons() {
     document.getElementById('btn-gioca').addEventListener('click', startGame);
     document.getElementById('btn-personaggi').addEventListener('click', showCharacterSelect);
