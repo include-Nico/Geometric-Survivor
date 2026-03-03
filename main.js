@@ -1009,3 +1009,4 @@ window.cancelReplace = cancelReplace;
 
 // INIZIALIZZA TUTTO AL CARICAMENTO
 showMenu();
+
