@@ -89,7 +89,7 @@ canvas {
 }
 .fullscreen-menu::before {
   content: '';
-  position: fixed;
+  position: absolute;
   inset: 0;
   background-image:
     linear-gradient(rgba(0,245,255,0.025) 1px, transparent 1px),
@@ -101,7 +101,7 @@ canvas {
 }
 .fullscreen-menu::after {
   content: '';
-  position: fixed;
+  position: absolute;
   inset: 0;
   background:
     radial-gradient(ellipse at 20% 50%, rgba(0,80,220,0.07) 0%, transparent 60%),
@@ -191,7 +191,6 @@ h2 {
   letter-spacing: 1px;
   text-transform: uppercase;
   transition: all 0.2s;
-  clip-path: polygon(10px 0%, 100% 0%, calc(100% - 10px) 100%, 0% 100%);
 }
 .menu-btn::before {
   content: '';
