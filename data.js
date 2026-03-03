@@ -27,11 +27,15 @@ export const WEAPON_MODELS = {
         ctx.beginPath(); ctx.arc(s*1.5, 0, s*0.3, 0, Math.PI*2); ctx.fill();
         ctx.shadowBlur = 0;
     },
-    stone_orb: (ctx, s, c) => {
-        ctx.fillStyle = "#7a5c3a"; ctx.shadowBlur = 8; ctx.shadowColor = "#4a3020";
-        ctx.beginPath(); ctx.arc(s*1.5, 0, s*0.75, 0, Math.PI*2); ctx.fill();
-        ctx.fillStyle = "#a07850"; ctx.shadowBlur = 0;
-        ctx.beginPath(); ctx.arc(s*1.3, -s*0.2, s*0.3, 0, Math.PI*2); ctx.fill();
+    mirror_orb: (ctx, s, c) => {
+        // Sfera di cristallo specchiata
+        let grad = ctx.createRadialGradient(s*1.3, -s*0.3, s*0.2, s*1.5, 0, s*0.8);
+        grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.4, '#aaddff'); grad.addColorStop(1, '#5588aa');
+        ctx.fillStyle = grad; ctx.shadowBlur = 15; ctx.shadowColor = "#aaddff";
+        ctx.beginPath(); ctx.arc(s*1.5, 0, s*0.8, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "rgba(255,255,255,0.6)"; // Riflesso luce
+        ctx.beginPath(); ctx.arc(s*1.2, -s*0.3, s*0.2, 0, Math.PI*2); ctx.fill();
     }
 };
 
@@ -48,7 +52,7 @@ export const WEAPONS_DB = {
     cerbottana: { id: 'cerbottana', name: "Cerbottana", baseDamage: 2, fireRate: 20, range: 700, speed: 22, weaponSize: 20, bulletSize: 4, color: "#800080", muzzleOffset: 30, poisonDamage: 5 },
     fireball_wand: { id: 'fireball_wand', name: "Palla di Fuoco", baseDamage: 35, fireRate: 70, range: 700, speed: 9, weaponSize: 18, bulletSize: 14, color: "#ff4400", muzzleOffset: 30, explodeRadius: 80 },
     electric_orb: { id: 'electric_orb', name: "Sfera Elettrica", baseDamage: 20, fireRate: 55, range: 650, speed: 11, weaponSize: 18, bulletSize: 12, color: "#00ccff", muzzleOffset: 30, chainMax: 4, chainRange: 150, chainDamage: 10 },
-    stone_orb: { id: 'stone_orb', name: "Sfera di Pietra", baseDamage: 25, fireRate: 180, range: 300, speed: 0, weaponSize: 18, bulletSize: 0, color: "#8B6544", muzzleOffset: 0, stoneHp: 80, stoneSize: 30 }
+    mirror_orb: { id: 'mirror_orb', name: "Sfera Specchio", baseDamage: 10, fireRate: 150, range: 300, speed: 0, weaponSize: 18, bulletSize: 0, color: "#e0ffff", muzzleOffset: 0, decoyHp: 100 }
 };
 
 // Ordine sblocco: Recluta lv1, Punta lv10, Gelataio lv15, Mago sconfiggi 30 boss
@@ -56,7 +60,7 @@ export const CHARACTERS = [
     { id: 0, name: "Recluta",  desc: "Corpo Quadrato",              reqLevel: 1,  weapons: ['pistola', 'fucile', 'bastone'],            lv2Weapon: 'bastone_veleno', unlockType: 'level' }, 
     { id: 1, name: "Punta",    desc: "Corpo Piramidale",            reqLevel: 10, weapons: ['pistola', 'razzo', 'freezer'],              lv2Weapon: 'cerbottana',     unlockType: 'level' }, 
     { id: 2, name: "Gelataio", desc: "Corpo a Cono",                reqLevel: 15, weapons: ['pistola', 'laser', 'granata'],              lv2Weapon: 'uzi',            unlockType: 'level' }, 
-    { id: 3, name: "Il Mago",  desc: "Corpo Quadrato con Cappello", reqLevel: 999,weapons: ['uzi', 'fireball_wand', 'electric_orb'], lv2Weapon: 'stone_orb',      unlockType: 'boss30' } 
+    { id: 3, name: "Il Mago",  desc: "Corpo Quadrato con Cappello", reqLevel: 999,weapons: ['uzi', 'fireball_wand', 'electric_orb'], lv2Weapon: 'mirror_orb',      unlockType: 'boss30' } 
 ];
 
 export const EQUIP_DB = {
