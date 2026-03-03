@@ -495,7 +495,7 @@ function update() {
         let hitRock = false;
         for (let ri = rocks.length - 1; ri >= 0; ri--) { 
             let r = rocks[ri]; 
-            if (r.isMageStone) continue; // I proiettili del giocatore attraversano le pietre del mago
+            if (r.isMageStone) continue; // Il Mago non deve mai rompere/sparare alle sue pietre
             if (distToSegment(r.x, r.y, oldX, oldY, b.x, b.y) < r.size + b.size/2 + 5) { 
                 if (b.weaponId === 'granata') { explosions.push({x: b.x, y: b.y, radius: 60 + (b.level * 20), damage: b.damage, life: 20, maxLife: 20, type: 'fire'}); } 
                 else if (b.weaponId === 'freezer') { explosions.push({x: b.x, y: b.y, radius: 45 + (b.level * 10), damage: 0, life: 180, maxLife: 180, type: 'ice'}); } 
@@ -786,12 +786,6 @@ function draw() {
         } else {
             ctx.fillStyle = '#666'; ctx.strokeStyle = '#444'; ctx.lineWidth = 4;
             ctx.beginPath(); ctx.arc(mx, my, r.size, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-            // Barra HP solo per rocce normali
-            let hpPct = r.hp / 30;
-            ctx.fillStyle = 'rgba(0,0,0,0.5)';
-            ctx.fillRect(mx - r.size, my - r.size - 10, r.size * 2, 5);
-            ctx.fillStyle = hpPct > 0.5 ? '#4f4' : '#f84';
-            ctx.fillRect(mx - r.size, my - r.size - 10, r.size * 2 * hpPct, 5);
         }
     });
     
@@ -960,18 +954,18 @@ function draw() {
     if (player.charId === 3) {
         let hatColor = '#4a2a8a'; // viola scuro default (senza elmo)
         if (eColor) { hatColor = eColor; } // colore cappello = rarità elmo equipaggiato
-        let hatX = screenCenterX; let hatY = screenCenterY - pBodyH/2 - player.size * 0.6;
+        let hatX = screenCenterX; let hatY = screenCenterY - pBodyH/2 - player.size * 0.55;
         ctx.fillStyle = hatColor; ctx.shadowBlur = 12; ctx.shadowColor = hatColor;
         // Tesa del cappello
-        ctx.beginPath(); ctx.ellipse(hatX, hatY + 4, player.size * 1.3, 5, 0, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(hatX, hatY + 4, player.size * 1.15, 4.5, 0, 0, Math.PI*2); ctx.fill();
         // Corpo conico del cappello
-        ctx.beginPath(); ctx.moveTo(hatX - player.size * 0.9, hatY + 4);
-        ctx.lineTo(hatX, hatY - player.size * 1.8);
-        ctx.lineTo(hatX + player.size * 0.9, hatY + 4); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(hatX - player.size * 0.78, hatY + 4);
+        ctx.lineTo(hatX, hatY - player.size * 1.55);
+        ctx.lineTo(hatX + player.size * 0.78, hatY + 4); ctx.fill();
         // Stellina in cima
         ctx.fillStyle = '#ffff00'; ctx.shadowColor = '#ffff00';
         ctx.font = `${player.size * 0.7}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('★', hatX, hatY - player.size * 1.5);
+        ctx.fillText('★', hatX, hatY - player.size * 1.3);
         ctx.shadowBlur = 0;
     }
 
