@@ -51,11 +51,12 @@ export const WEAPONS_DB = {
     stone_orb: { id: 'stone_orb', name: "Sfera di Pietra", baseDamage: 25, fireRate: 110, range: 300, speed: 0, weaponSize: 18, bulletSize: 0, color: "#8B6544", muzzleOffset: 0, stoneHp: 80, stoneSize: 30 }
 };
 
+// Ordine sblocco: Recluta lv1, Punta lv10, Gelataio lv15, Mago sconfiggi 30 boss
 export const CHARACTERS = [ 
-    { id: 0, name: "Recluta", desc: "Corpo Quadrato", reqLevel: 1, weapons: ['pistola', 'fucile', 'bastone'], lv2Weapon: 'bastone_veleno', unlockType: 'level' }, 
-    { id: 1, name: "Gelataio", desc: "Corpo a Cono", reqLevel: 10, weapons: ['pistola', 'laser', 'granata'], lv2Weapon: 'uzi', unlockType: 'level' }, 
-    { id: 2, name: "Il Mago", desc: "Corpo Quadrato con Cappello", reqLevel: 15, weapons: ['pistola', 'fireball_wand', 'electric_orb'], lv2Weapon: 'stone_orb', unlockType: 'level' },
-    { id: 3, name: "Punta", desc: "Corpo Piramidale", reqLevel: 99, weapons: ['pistola', 'razzo', 'freezer'], lv2Weapon: 'cerbottana', unlockType: 'boss30' }
+    { id: 0, name: "Recluta",  desc: "Corpo Quadrato",              reqLevel: 1,  weapons: ['pistola', 'fucile', 'bastone'],            lv2Weapon: 'bastone_veleno', unlockType: 'level' }, 
+    { id: 1, name: "Punta",    desc: "Corpo Piramidale",            reqLevel: 10, weapons: ['pistola', 'razzo', 'freezer'],              lv2Weapon: 'cerbottana',     unlockType: 'level' }, 
+    { id: 2, name: "Gelataio", desc: "Corpo a Cono",                reqLevel: 15, weapons: ['pistola', 'laser', 'granata'],              lv2Weapon: 'uzi',            unlockType: 'level' }, 
+    { id: 3, name: "Il Mago",  desc: "Corpo Quadrato con Cappello", reqLevel: 999,weapons: ['pistola', 'fireball_wand', 'electric_orb'], lv2Weapon: 'stone_orb',      unlockType: 'boss30' } 
 ];
 
 export const EQUIP_DB = {
