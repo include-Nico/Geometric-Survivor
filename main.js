@@ -16,6 +16,7 @@ window.addEventListener('resize', resize); resize();
 // --- SALVATAGGI E MEMORIA SICURI ---
 export let gameState = "MENU"; export let paused = false; export let frameCount = 0;
 export let cheatUnlocked = localStorage.getItem('survivorCheat') === 'true'; 
+export let puntaUnlocked = localStorage.getItem('survivorPuntaUnlocked') === 'true';
 export let totalCrystals = parseInt(localStorage.getItem('survivorCrystals')) || 0;
 export let unlockedEquip = JSON.parse(localStorage.getItem('survivorUnlockedEquip')) || [];
 export let equippedItems = JSON.parse(localStorage.getItem('survivorEquipped')) || { elmo: null, corazza: null, amuleto1: null, amuleto2: null };
@@ -33,11 +34,15 @@ export let dailyMissions = dmSaved ? dmSaved : { date: todayStr, bossesKilled: 0
 if (dailyMissions.date !== todayStr) { dailyMissions = { date: todayStr, bossesKilled: 0, levelsGained: 0, itemsBought: 0, claim1: false, claim2: false, claim3: false }; localStorage.setItem('survivorDaily', JSON.stringify(dailyMissions)); }
 
 let bpSaved = JSON.parse(localStorage.getItem('survivorBattlePass'));
-export let battlePass = bpSaved ? bpSaved : { weekStart: Date.now(), bosses: 0, claims: { 15: false, 30: false, 50: false, 100: false, 150: false } };
+export let battlePass = bpSaved ? bpSaved : { monthStart: Date.now(), bosses: 0, claims: { 15: false, 30: false, 50: false, 100: false, 150: false } };
 if(!battlePass.claims) battlePass.claims = { 15: false, 30: false, 50: false, 100: false, 150: false };
-if(Date.now() - battlePass.weekStart > 604800000) { battlePass = { weekStart: Date.now(), bosses: 0, claims: { 15: false, 30: false, 50: false, 100: false, 150: false } }; localStorage.setItem('survivorBattlePass', JSON.stringify(battlePass)); }
+// Migrazione: se vecchio campo weekStart esiste, rinominalo
+if(battlePass.weekStart && !battlePass.monthStart) { battlePass.monthStart = battlePass.weekStart; delete battlePass.weekStart; }
+if(!battlePass.monthStart) battlePass.monthStart = Date.now();
+if(Date.now() - battlePass.monthStart > 2592000000) { battlePass = { monthStart: Date.now(), bosses: 0, claims: { 15: false, 30: false, 50: false, 100: false, 150: false } }; localStorage.setItem('survivorBattlePass', JSON.stringify(battlePass)); }
 
 export let selectedCharId = 0; export let savedName = localStorage.getItem('survivorPlayerName') || ""; export let activePlayerName = "Eroe";
+export let magoUnlocked = localStorage.getItem('survivorMagoUnlocked') === 'true';
 window.changeSelectedCharId = function(id) { selectedCharId = id; }; 
 
 export let chestImg = new Image(); chestImg.src = 'chest.png'; export let chestEpicImg = new Image(); chestEpicImg.src = 'chestepic.png';
@@ -45,7 +50,9 @@ export let isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoin
 export let controlMode = isTouchDevice ? 'mobile' : 'pc';
 
 // --- VARIABILI DI GIOCO ---
-export let player = {}; export let enemies = []; export let bullets = []; export let beams = []; export let explosions = []; export let elementalTrails = []; export let enemyBullets = []; export let gems = []; export let rocks = []; export let chests = [];
+export let player = {}; export let enemies = []; export let bullets = []; export let beams = []; export let explosions = []; export let elementalTrails = []; export let enemyBullets = []; export let gems = []; export let rocks = []; export let chests = []; export let electricArcs = [];
+export let magoWalls = []; // Pietre create dalla Sfera Pietra del Mago
+export let magoWallTelegraphs = []; // Preavviso spawn pietre
 export let xp = 0; export let xpNeeded = 15; export let level = 1; export let currentChoices = []; export let pendingWeapon = null; export let sessionCrystals = 0;
 export let bossArena = { active: false, x: 0, y: 0, radius: 800 }; export let rockTelegraphs = [];
 
@@ -72,7 +79,7 @@ function savePlayerName() { let inputVal = document.getElementById('player-name-
 
 function checkCheatCode() {
     let input = document.getElementById('cheat-input').value.trim().toLowerCase(); 
-    if (input === "160105") { cheatUnlocked = true; localStorage.setItem('survivorCheat', 'true'); unlockedEquip = []; ['elmo', 'corazza', 'amuleto'].forEach(cat => { EQUIP_DB[cat].forEach(item => unlockedEquip.push(item.id)); }); localStorage.setItem('survivorUnlockedEquip', JSON.stringify(unlockedEquip)); charLevels = {0:3, 1:3, 2:3}; localStorage.setItem('survivorCharLevels', JSON.stringify(charLevels)); alert("✔️ CODICE ACCETTATO!\nTutti i personaggi (Lv.3) e gli equipaggiamenti sono sbloccati per sempre."); closeSettingsModal(); if(document.getElementById('equipment-select').style.display === 'flex') updateEquipMenuUI(); } 
+    if (input === "160105") { cheatUnlocked = true; localStorage.setItem('survivorCheat', 'true'); magoUnlocked = true; localStorage.setItem('survivorMagoUnlocked', 'true'); unlockedEquip = []; ['elmo', 'corazza', 'amuleto'].forEach(cat => { EQUIP_DB[cat].forEach(item => unlockedEquip.push(item.id)); }); localStorage.setItem('survivorUnlockedEquip', JSON.stringify(unlockedEquip)); charLevels = {0:3, 1:3, 2:3, 3:3}; localStorage.setItem('survivorCharLevels', JSON.stringify(charLevels)); alert("✔️ CODICE ACCETTATO!\nTutti i personaggi (Lv.3) e gli equipaggiamenti sono sbloccati per sempre."); closeSettingsModal(); if(document.getElementById('equipment-select').style.display === 'flex') updateEquipMenuUI(); } 
     else if (input === "tesoro") { totalCrystals += 1000; localStorage.setItem('survivorCrystals', totalCrystals); alert("💎 +1000 CRISTALLI!\nHai ricevuto una fornitura di cristalli."); closeSettingsModal(); if(document.getElementById('equipment-select').style.display === 'flex') updateEquipMenuUI(); } 
     else if (input === "azzera") { localStorage.clear(); alert("🔄 PROGRESSI RESETTATI!\nIl gioco si riavvierà."); location.reload(); } 
     else { alert("❌ Codice errato."); } 
@@ -114,7 +121,7 @@ function startGame() {
     rockTelegraphs = [];
 
     player = { x: 0, y: 0, size: 20, speed: 4, hp: 100, maxHp: 100, pickupRange: 80, weapons: [], maxWeapons: maxWeps, charLevel: cLevel, shield: 0, maxShield: 0, shieldRegen: 0.2, lastHitTimer: 0, iFrames: 0, hasOrbs: false, orbLevel: 0, orbAngle: 0, orbTrail: [], miniMes: [], lastBossLevel: 0, charId: selectedCharId, hasRevived: false };
-    enemies = []; bullets = []; beams = []; explosions = []; elementalTrails = []; enemyBullets = []; gems = []; rocks = []; chests = []; xp = 0; level = 1; xpNeeded = 15; frameCount = 0; keys = {}; paused = false; joyX = 0; joyY = 0;
+    enemies = []; bullets = []; beams = []; explosions = []; elementalTrails = []; enemyBullets = []; gems = []; rocks = []; chests = []; electricArcs = []; rockTelegraphs = []; xp = 0; level = 1; xpNeeded = 15; frameCount = 0; keys = {}; paused = false; joyX = 0; joyY = 0;
     bossArena = { active: false, x: 0, y: 0, radius: 800 };
     
     for(let i = 0; i < 15; i++) { let valid = false; let attempts = 0; let rx, ry, rSize; while(!valid && attempts < 10) { let angle = Math.random() * Math.PI * 2; let dist = 300 + Math.random() * 1500; rx = Math.cos(angle) * dist; ry = Math.sin(angle) * dist; rSize = 25 + Math.random() * 20; valid = isPositionFree(rx, ry, rSize); attempts++; } if (valid) rocks.push({ x: rx, y: ry, size: rSize, hp: 30 }); }
@@ -139,7 +146,7 @@ function giveWeapon(weaponData) { player.weapons.push({ ...weaponData, level: 1,
 function buildUpgradePool() {
     let pool = [];
     player.weapons.forEach(w => { 
-        pool.push({ name: `<span class="upgrade-title" style="color:${w.color}">⏫ Potenzia ${w.name} (Lv.${w.level + 1})</span><span class="upgrade-desc">Danni e velocità incrementati</span>`, apply: () => { w.level++; if (w.id !== 'freezer' && w.id !== 'cerbottana') w.currentDamage += Math.floor(w.baseDamage * 0.4); if (w.id === 'cerbottana') w.poisonDamage += 5; if (w.id === 'bastone_veleno') w.range = Math.min(350, w.range + 15); w.currentFireRate = Math.max(5, w.currentFireRate - (w.id === 'freezer' ? 8 : 5)); updateWeaponsUI(player); finishUpgrade(); }}); 
+        pool.push({ name: `<span class="upgrade-title" style="color:${w.color}">⏫ Potenzia ${w.name} (Lv.${w.level + 1})</span><span class="upgrade-desc">Danni e velocità incrementati</span>`, apply: () => { w.level++; if (w.id !== 'freezer' && w.id !== 'cerbottana' && w.id !== 'sfera_pietra') w.currentDamage += Math.floor(w.baseDamage * 0.4); if (w.id === 'cerbottana') w.poisonDamage += 5; if (w.id === 'bastone_veleno') w.range = Math.min(350, w.range + 15); if (w.id === 'sfera_pietra') { w.wallHp = (w.wallHp || 250) + 80; w.wallSize = (w.wallSize || 35) + 5; w.currentDamage += 15; } if (w.id === 'fireball') { w.explodeRadius = (w.explodeRadius || 80) + 20; } if (w.id === 'elettrico') { w.chainCount = (w.chainCount || 4) + 2; } w.currentFireRate = Math.max(5, w.currentFireRate - (w.id === 'freezer' ? 8 : (w.id === 'sfera_pietra' ? 12 : 5))); updateWeaponsUI(player); finishUpgrade(); }}); 
     });
     
     let charWeapons = CHARACTERS.find(c => c.id === player.charId).weapons; let poolWeps = [...charWeapons];
@@ -210,6 +217,13 @@ function handleEnemyDeath(e, ei) {
         dailyMissions.bossesKilled++; saveDailyMissions();
         battlePass.bosses++; saveBattlePass(); 
 
+        // Sblocca "Punta" (id:3) quando si sconfigge il boss al livello 30 (6° boss)
+        if (gameStats.bossesKilled >= 30 && !puntaUnlocked) {
+            puntaUnlocked = true;
+            localStorage.setItem('survivorPuntaUnlocked', 'true');
+            showItemFeedback("⚔️ PUNTA SBLOCCATO!", "#ff8800");
+        }
+
         chests.push({ x: e.x, y: e.y, size: 35, isSpecial: true, isEpic: false, isBossChest: true }); 
         showItemFeedback("🏆 CASSA SUPREMA!", "gold"); 
         for(let c=0; c<15; c++) gems.push({ x: e.x + Math.random()*80-40, y: e.y + Math.random()*80-40, isCrystal: true }); 
@@ -245,7 +259,20 @@ function update() {
     
     for (let i = rockTelegraphs.length - 1; i >= 0; i--) {
         let rt = rockTelegraphs[i]; rt.timer--;
-        if (rt.timer <= 0) { if (isPositionFree(rt.x, rt.y, rt.radius)) { rocks.push({ x: rt.x, y: rt.y, size: rt.radius, hp: 60, dead: false }); } rockTelegraphs.splice(i, 1); }
+        if (rt.timer <= 0) {
+            if (rt.isMageStone) {
+                // Pietra del Mago: alta resistenza, causa danno spawn, non rimossa automaticamente
+                let stoneSize = rt.stoneSize || 30;
+                let stoneHp = rt.stoneHp || 100;
+                // Danno ai nemici nell'area di spawn
+                enemies.forEach(e => { if (!e.dead && Math.hypot(e.x - rt.x, e.y - rt.y) < stoneSize + e.size) { e.hp -= rt.stoneDamage || 25; e.hitTimer = 10; if (e.hp <= 0 && !e.dead) { e.dead = true; handleEnemyDeath(e, -1); } } });
+                rocks.push({ x: rt.x, y: rt.y, size: stoneSize, hp: stoneHp, dead: false, isMageStone: true });
+                rockTelegraphs.splice(i, 1);
+            } else {
+                if (isPositionFree(rt.x, rt.y, rt.radius)) { rocks.push({ x: rt.x, y: rt.y, size: rt.radius, hp: 60, dead: false }); }
+                rockTelegraphs.splice(i, 1);
+            }
+        }
     }
     for (let r of rocks) { if (Math.hypot((player.x + moveX) - r.x, player.y - r.y) < player.size + r.size) canMoveX = false; if (Math.hypot(player.x - r.x, (player.y + moveY) - r.y) < player.size + r.size) canMoveY = false; }
     if (canMoveX) player.x += moveX; if (canMoveY) player.y += moveY;
@@ -312,6 +339,21 @@ function update() {
                 explosions.push({x: player.x, y: player.y, radius: pRadius, damage: w.currentDamage, life: 15, maxLife: 15, type: 'poison'});
                 w.fireTimer = 0; return; 
             }
+            // Sfera di pietra del Mago: spawna un muro di pietre intorno al giocatore
+            if (w.id === 'stone_orb') {
+                let numStones = 3 + Math.floor(w.level * 0.5);
+                let spawnRadius = 90;
+                for (let si = 0; si < numStones; si++) {
+                    let sAngle = (Math.PI * 2 / numStones) * si + Math.random() * 0.3;
+                    let sx = player.x + Math.cos(sAngle) * spawnRadius;
+                    let sy = player.y + Math.sin(sAngle) * spawnRadius;
+                    let stoneSize = w.stoneSize || 30;
+                    let stoneHp = (w.stoneHp || 80) + w.level * 20;
+                    // Preavviso spown
+                    rockTelegraphs.push({ x: sx, y: sy, radius: stoneSize, timer: 40, isMageStone: true, stoneHp: stoneHp, stoneSize: stoneSize, stoneDamage: w.currentDamage });
+                }
+                w.fireTimer = 0; return;
+            }
             let targets = enemies.concat(rocks).filter(t => Math.hypot(t.x - player.x, t.y - player.y) <= w.range);
             if (targets.length > 0) {
                 let closest = targets.reduce((prev, curr) => Math.hypot(curr.x - player.x, curr.y - player.y) < Math.hypot(prev.x - player.x, prev.y - player.y) ? curr : prev);
@@ -339,6 +381,13 @@ function update() {
                         });
                         rocks.forEach(r => { if (r.hp > 0 && distToSegment(r.x, r.y, spawnX, spawnY, endX, endY) < r.size + 20) { r.hp -= w.currentDamage; if(r.hp <= 0 && !r.dead){ r.dead=true; gems.push({ x: r.x, y: r.y, isSuper: true }); } } });
                     }
+                } else if (w.id === 'fireball_wand') {
+                    bullets.push({ x: spawnX, y: spawnY, startX: spawnX, startY: spawnY, vx: cosA * w.speed, vy: sinA * w.speed, damage: w.currentDamage, size: w.bulletSize, color: w.color, range: w.range, weaponId: w.id, level: w.level, poisonDmg: 0, explodeRadius: w.explodeRadius || 80 });
+                } else if (w.id === 'electric_orb') {
+                    let chainMax = (w.chainMax || 4) + Math.floor((w.level - 1) * 0.5);
+                    bullets.push({ x: spawnX, y: spawnY, startX: spawnX, startY: spawnY, vx: cosA * w.speed, vy: sinA * w.speed, damage: w.currentDamage, size: w.bulletSize, color: w.color, range: w.range, weaponId: w.id, level: w.level, poisonDmg: 0, chainRange: w.chainRange || 150, chainDamage: w.chainDamage || 10, chainMax: chainMax });
+                } else if (w.id === 'sfera_pietra') {
+                    // branch obsoleto - non usato
                 } else {
                     bullets.push({ x: spawnX, y: spawnY, startX: spawnX, startY: spawnY, vx: cosA * w.speed, vy: sinA * w.speed, damage: w.currentDamage, size: w.bulletSize, color: w.color, range: w.range, weaponId: w.id, level: w.level, poisonDmg: w.poisonDamage || 0 });
                 }
@@ -361,8 +410,39 @@ function update() {
         if (outOfRange || hitArenaWall) { 
             if (b.weaponId === 'granata') explosions.push({x: b.x, y: b.y, radius: 60 + (b.level * 20), damage: b.damage, life: 20, maxLife: 20, type: 'fire'});
             else if (b.weaponId === 'freezer') explosions.push({x: b.x, y: b.y, radius: 45 + (b.level * 10), damage: 0, life: 180, maxLife: 180, type: 'ice'});
+            else if (b.weaponId === 'fireball_wand') { 
+                let expR = (b.explodeRadius || 80) + ((b.level || 1) - 1) * 20;
+                explosions.push({x: b.x, y: b.y, radius: expR, damage: b.damage, life: 25, maxLife: 25, type: 'fire'});
+            }
             bullets.splice(i, 1); continue; 
-        } 
+        }
+        // Gestione hit nemici per electric_orb (chain lightning) 
+        if (b.weaponId === 'electric_orb') {
+            let hitEnemy = false;
+            for (let ei2 = enemies.length - 1; ei2 >= 0; ei2--) {
+                let et = enemies[ei2];
+                if (!et.dead && Math.hypot(b.x - et.x, b.y - et.y) < et.size + b.size) {
+                    et.hp -= b.damage; et.hitTimer = 5;
+                    et.frozenTimer = 40; et.speed = et.originalSpeed * 0.5; // stun breve
+                    if (et.hp <= 0 && !et.dead) { et.dead = true; handleEnemyDeath(et, ei2); }
+                    // Chain: colpisci fino a chainMax nemici vicini
+                    let chained = 0; let maxChain = b.chainMax || 4;
+                    enemies.forEach(en => {
+                        if (!en.dead && en !== et && chained < maxChain && Math.hypot(en.x - et.x, en.y - et.y) < (b.chainRange || 150)) {
+                            en.hp -= (b.chainDamage || 10); en.hitTimer = 5;
+                            en.frozenTimer = 30; en.speed = en.originalSpeed * 0.6;
+                            if (en.hp <= 0 && !en.dead) { en.dead = true; handleEnemyDeath(en, -1); }
+                            // Aggiungi un flash visivo nella lista electricArcs
+                            electricArcs.push({ x1: et.x, y1: et.y, x2: en.x, y2: en.y, life: 8 });
+                            chained++;
+                        }
+                    });
+                    hitEnemy = true;
+                    bullets.splice(i, 1); break;
+                }
+            }
+            if (hitEnemy) continue;
+        }
         let hitRock = false;
         for (let ri = rocks.length - 1; ri >= 0; ri--) { 
             let r = rocks[ri]; 
@@ -378,6 +458,8 @@ function update() {
 
     elementalTrails.forEach(t => { t.life--; if (t.life % 10 === 0) { enemies.forEach(e => { if (!e.dead && Math.hypot(e.x - t.x, e.y - t.y) < t.radius + e.size) { if (t.type === 'ice') { e.frozenTimer = 180; e.speed = e.originalSpeed * 0.2; } else { e.burnTimer = 180; } } }); } });
     elementalTrails = elementalTrails.filter(t => t.life > 0);
+    electricArcs.forEach(ec => ec.life--);
+    electricArcs = electricArcs.filter(ec => ec.life > 0);
 
     explosions.forEach(exp => {
         if (exp.type === 'ice') { if (frameCount % 10 === 0 || exp.life === exp.maxLife) { enemies.forEach(e => { if (!e.dead && Math.hypot(e.x - exp.x, e.y - exp.y) < exp.radius + e.size) { e.frozenTimer = 180; e.speed = e.originalSpeed * 0.3; } }); } } 
@@ -446,6 +528,48 @@ function update() {
     
     for (let i = rocks.length - 1; i >= 0; i--) { if(rocks[i].dead) { rocks.splice(i,1); } else if (Math.hypot(player.x - rocks[i].x, player.y - rocks[i].y) > 2000) rocks.splice(i, 1); }
     while(rocks.length < 15) { let valid = false; let attempts = 0; let rx, ry, rSize; while(!valid && attempts < 10) { let angle = Math.random() * Math.PI * 2; rx = player.x + Math.cos(angle) * (1000 + Math.random() * 500); ry = player.y + Math.sin(angle) * (1000 + Math.random() * 500); rSize = 25 + Math.random() * 20; valid = isPositionFree(rx, ry, rSize); attempts++; } if (valid) rocks.push({ x: rx, y: ry, size: rSize, hp: 30 }); }
+
+    // --- PIETRE DEL MAGO ---
+    // Aggiorna preavvisi spawn pietre
+    if (!window._electricChains) window._electricChains = [];
+    window._electricChains.forEach(ec => ec.life--);
+    window._electricChains = window._electricChains.filter(ec => ec.life > 0);
+
+    for (let i = magoWallTelegraphs.length - 1; i >= 0; i--) {
+        let mt = magoWallTelegraphs[i]; mt.timer--;
+        if (mt.timer <= 0) {
+            // Spawn pietra del mago: ha durezza alta, blocca nemici
+            // Danno ai nemici colpiti dallo spawn
+            enemies.forEach(e => { if (!e.dead && Math.hypot(e.x - mt.x, e.y - mt.y) < mt.size + e.size + 10) { e.hp -= mt.damage * 2; e.hitTimer = 8; if(e.hp <= 0 && !e.dead) { e.dead=true; handleEnemyDeath(e,-1); } } });
+            magoWalls.push({ x: mt.x, y: mt.y, size: mt.size, hp: 250, maxHp: 250, dead: false });
+            magoWallTelegraphs.splice(i, 1);
+        }
+    }
+    // Aggiorna pietre del mago (blocca nemici, riceve danno dai proiettili nemici NO, solo dai bullet del player no - sono difensive)
+    for (let i = magoWalls.length - 1; i >= 0; i--) {
+        let mw = magoWalls[i];
+        if (mw.dead || mw.hp <= 0) { magoWalls.splice(i, 1); continue; }
+        // Rimuovi se troppo lontane
+        if (Math.hypot(player.x - mw.x, player.y - mw.y) > 2500) { magoWalls.splice(i, 1); continue; }
+        // Blocca nemici
+        enemies.forEach(e => {
+            let d = Math.hypot(e.x - mw.x, e.y - mw.y);
+            if (d < e.size + mw.size) { let pa = Math.atan2(e.y - mw.y, e.x - mw.x); let ov = (e.size + mw.size) - d; e.x += Math.cos(pa)*ov; e.y += Math.sin(pa)*ov; }
+        });
+        // Blocca player
+        if (Math.hypot((player.x + 0) - mw.x, player.y - mw.y) < player.size + mw.size) {
+            let pa = Math.atan2(player.y - mw.y, player.x - mw.x); 
+            player.x = mw.x + Math.cos(pa)*(player.size + mw.size);
+            player.y = mw.y + Math.sin(pa)*(player.size + mw.size);
+        }
+        // I proiettili nemici la danneggiano
+        for (let bi = enemyBullets.length - 1; bi >= 0; bi--) {
+            let b = enemyBullets[bi];
+            if (Math.hypot(b.x - mw.x, b.y - mw.y) < mw.size + 5) { mw.hp -= 15; enemyBullets.splice(bi, 1); if(mw.hp <= 0) { mw.dead = true; break; } }
+        }
+        // I nemici melee la danneggiano col contatto
+        enemies.forEach(e => { if (!e.dead && Math.hypot(e.x - mw.x, e.y - mw.y) < e.size + mw.size + 2) { if (frameCount % 30 === 0) mw.hp -= 5; } });
+    }
     
     let spawnDelay = Math.max(30, 120 - (level * 10)); 
     if (bossArena.active) spawnDelay *= 5; 
@@ -525,6 +649,33 @@ function update() {
                 if (b.weaponId === 'granata') { explosions.push({x: b.x, y: b.y, radius: 60 + (b.level * 20), damage: b.damage, life: 20, maxLife: 20, type: 'fire'}); } 
                 else if (b.weaponId === 'freezer') { explosions.push({x: b.x, y: b.y, radius: 45 + (b.level * 10), damage: 0, life: 180, maxLife: 180, type: 'ice'}); } 
                 else if (b.weaponId === 'cerbottana') { e.hp -= b.damage; e.hitTimer = 5; e.poisonTimer = 300; e.poisonDmg = b.poisonDmg + (b.level * 2); }
+                else if (b.weaponId === 'fireball') {
+                    // Colpisce il nemico e poi esplode
+                    let expR = (b.explodeRadius || 80) + (b.level - 1) * 20;
+                    explosions.push({x: b.x, y: b.y, radius: expR, damage: b.damage, life: 25, maxLife: 25, type: 'fire'});
+                }
+                else if (b.weaponId === 'elettrico') {
+                    // Danno al nemico principale
+                    e.hp -= b.damage; e.hitTimer = 5;
+                    // Stun breve (1.5 secondi)
+                    e.frozenTimer = 90; e.speed = e.originalSpeed * 0.1;
+                    // Chain lightning: colpisce i nemici vicini
+                    let maxChain = (b.chainCount || 4) + (b.level - 1);
+                    let chained = [e];
+                    for (let c = 0; c < maxChain; c++) {
+                        let lastE = chained[chained.length - 1];
+                        let nextTarget = enemies.filter(ne => !ne.dead && !chained.includes(ne) && Math.hypot(ne.x - lastE.x, ne.y - lastE.y) < 180);
+                        if (nextTarget.length === 0) break;
+                        let closest = nextTarget.reduce((p, q) => Math.hypot(q.x-lastE.x,q.y-lastE.y) < Math.hypot(p.x-lastE.x,p.y-lastE.y) ? q : p);
+                        closest.hp -= b.damage * 0.6; closest.hitTimer = 5; closest.frozenTimer = 60; closest.speed = closest.originalSpeed * 0.2;
+                        chained.push(closest);
+                        // Archivia la catena per disegnarla
+                        if (!window._electricChains) window._electricChains = [];
+                        window._electricChains.push({ x1: lastE.x, y1: lastE.y, x2: closest.x, y2: closest.y, life: 15 });
+                        if (closest.hp <= 0 && !closest.dead) { closest.dead = true; handleEnemyDeath(closest, -1); }
+                    }
+                    if (e.hp <= 0 && !e.dead) { e.dead = true; handleEnemyDeath(e, -1); }
+                }
                 else { e.hp -= b.damage; e.hitTimer = 5; }
                 bullets.splice(bi, 1); 
             } 
@@ -553,7 +704,25 @@ function drawProjectile(b, camX, camY) {
     else if (b.weaponId === 'bastone') { ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(px, py, b.size, 0, Math.PI*2); ctx.fill(); } 
     else if (b.weaponId === 'granata') { ctx.fillStyle = "#2a4d20"; ctx.beginPath(); ctx.arc(px, py, b.size, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = "#eeddaa"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(px, py - b.size*0.8); ctx.lineTo(px + b.size, py - b.size*1.5); ctx.stroke(); } 
     else if (b.weaponId === 'freezer') { let s = b.size; ctx.fillStyle = b.color; ctx.save(); ctx.translate(px, py); ctx.rotate(frameCount*0.1); ctx.beginPath(); let inner=s/3; let outer=s; for(let i=0;i<8;i++){let rad=(i%2===0)?outer:inner;let a=i*Math.PI/4;ctx.lineTo(Math.cos(a)*rad,Math.sin(a)*rad);} ctx.fill(); ctx.restore(); } 
-    else if (b.weaponId === 'fucile' || b.weaponId === 'uzi' || b.weaponId === 'cerbottana') { ctx.strokeStyle = b.color; ctx.lineWidth = b.size; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - b.vx*1.5, py - b.vy*1.5); ctx.stroke(); } 
+    else if (b.weaponId === 'fucile' || b.weaponId === 'uzi' || b.weaponId === 'cerbottana') { ctx.strokeStyle = b.color; ctx.lineWidth = b.size; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - b.vx*1.5, py - b.vy*1.5); ctx.stroke(); }
+    else if (b.weaponId === 'fireball') {
+        // Sfera di fuoco con alone pulsante
+        let pulse = 0.8 + 0.2 * Math.sin(frameCount * 0.3);
+        let grad = ctx.createRadialGradient(px, py, b.size*0.1, px, py, b.size * pulse);
+        grad.addColorStop(0, '#ffff00'); grad.addColorStop(0.4, '#ff4500'); grad.addColorStop(1, 'rgba(200,0,0,0)');
+        ctx.fillStyle = grad; ctx.shadowBlur = 20; ctx.shadowColor = '#ff4500';
+        ctx.beginPath(); ctx.arc(px, py, b.size * pulse, 0, Math.PI*2); ctx.fill();
+    }
+    else if (b.weaponId === 'elettrico') {
+        // Sfera elettrica con scintille
+        let grad = ctx.createRadialGradient(px, py, b.size*0.1, px, py, b.size);
+        grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.4, '#00ccff'); grad.addColorStop(1, 'rgba(0,80,255,0)');
+        ctx.fillStyle = grad; ctx.shadowBlur = 25; ctx.shadowColor = '#00ccff';
+        ctx.beginPath(); ctx.arc(px, py, b.size, 0, Math.PI*2); ctx.fill();
+        // Archi elettrici in movimento
+        ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5;
+        for(let i=0; i<4; i++) { let a=(i/4)*Math.PI*2 + frameCount*0.2; ctx.beginPath(); ctx.moveTo(px,py); ctx.lineTo(px+Math.cos(a)*b.size*1.3, py+Math.sin(a)*b.size*1.3); ctx.stroke(); }
+    }
     else { ctx.fillStyle = b.color; ctx.beginPath(); ctx.arc(px, py, b.size, 0, Math.PI*2); ctx.fill(); }
     ctx.shadowBlur = 0;
 }
@@ -577,15 +746,53 @@ function draw() {
     }
 
     rockTelegraphs.forEach(rt => {
-        ctx.strokeStyle = "red"; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.arc(rt.x - camX, rt.y - camY, rt.radius, 0, Math.PI * 2); ctx.stroke();
-        ctx.fillStyle = "rgba(255, 0, 0, 0.3)"; ctx.fill();
-        ctx.font = "20px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "white";
-        ctx.fillText("⚠️", rt.x - camX, rt.y - camY);
+        if (rt.isMageStone) {
+            let alpha = 1 - (rt.timer / 40);
+            ctx.strokeStyle = `rgba(160, 100, 40, ${0.5 + alpha * 0.5})`; ctx.lineWidth = 3; ctx.setLineDash([5, 3]);
+            ctx.beginPath(); ctx.arc(rt.x - camX, rt.y - camY, rt.radius, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
+            ctx.fillStyle = `rgba(120, 80, 30, ${alpha * 0.3})`; ctx.fill();
+            ctx.font = "18px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillStyle = "white"; ctx.fillText("⛰️", rt.x - camX, rt.y - camY);
+        } else {
+            ctx.strokeStyle = "red"; ctx.lineWidth = 3;
+            ctx.beginPath(); ctx.arc(rt.x - camX, rt.y - camY, rt.radius, 0, Math.PI * 2); ctx.stroke();
+            ctx.fillStyle = "rgba(255, 0, 0, 0.3)"; ctx.fill();
+            ctx.font = "20px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillStyle = "white";
+            ctx.fillText("⚠️", rt.x - camX, rt.y - camY);
+        }
     });
 
     elementalTrails.forEach(t => { let alpha = t.life / t.maxLife; ctx.fillStyle = t.type === 'ice' ? `rgba(0, 255, 255, ${alpha * 0.4})` : `rgba(255, 100, 0, ${alpha * 0.4})`; ctx.beginPath(); ctx.arc(t.x - camX, t.y - camY, t.radius, 0, Math.PI*2); ctx.fill(); });
-    ctx.fillStyle = '#666'; ctx.strokeStyle = '#444'; ctx.lineWidth = 4; rocks.forEach(r => { ctx.beginPath(); ctx.arc(r.x - camX, r.y - camY, r.size, 0, Math.PI*2); ctx.fill(); ctx.stroke(); });
+    
+    // Rocks: pietre mago più scure e con pattern
+    rocks.forEach(r => {
+        let mx = r.x - camX; let my = r.y - camY;
+        if (r.isMageStone) {
+            let grad = ctx.createRadialGradient(mx - r.size*0.2, my - r.size*0.2, r.size*0.1, mx, my, r.size);
+            grad.addColorStop(0, '#b08850'); grad.addColorStop(0.6, '#7a5c35'); grad.addColorStop(1, '#4a3020');
+            ctx.fillStyle = grad; ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 3;
+            ctx.shadowBlur = 10; ctx.shadowColor = '#8B6040';
+            ctx.beginPath(); ctx.arc(mx, my, r.size, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+            ctx.shadowBlur = 0;
+            // HP bar
+            let hpR = r.hp / (r.maxHp || r.hp);
+            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(mx - r.size, my - r.size - 8, r.size*2, 4);
+            ctx.fillStyle = hpR > 0.5 ? '#a07040' : '#ff6600'; ctx.fillRect(mx - r.size, my - r.size - 8, r.size*2*Math.max(0,hpR), 4);
+        } else {
+            ctx.fillStyle = '#666'; ctx.strokeStyle = '#444'; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.arc(mx, my, r.size, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+        }
+    });
+    
+    // Chain lightning arcs
+    electricArcs.forEach(ec => {
+        let alpha = ec.life / 8;
+        ctx.strokeStyle = `rgba(0, 200, 255, ${alpha})`; ctx.lineWidth = 2 + alpha * 3;
+        ctx.shadowBlur = 15; ctx.shadowColor = '#00ccff';
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath(); ctx.moveTo(ec.x1 - camX, ec.y1 - camY); ctx.lineTo(ec.x2 - camX, ec.y2 - camY); ctx.stroke();
+        ctx.setLineDash([]); ctx.shadowBlur = 0;
+    });
     
     explosions.forEach(exp => { 
         let alpha = exp.life / exp.maxLife; 
@@ -700,16 +907,47 @@ function draw() {
     let cColor = equippedItems.corazza ? eqColors[equippedItems.corazza.split('_')[1]] : null;
 
     ctx.fillStyle = '#00ff00'; 
-    if (player.charId === 0) { ctx.fillRect(screenCenterX - pBodyW/2, screenCenterY - pBodyH/2 + 5, pBodyW, pBodyH); } else if (player.charId === 1) { ctx.beginPath(); ctx.moveTo(screenCenterX - pBodyW, screenCenterY - pBodyH/2 + 5); ctx.lineTo(screenCenterX + pBodyW, screenCenterY - pBodyH/2 + 5); ctx.lineTo(screenCenterX, screenCenterY + pBodyH/2 + 5); ctx.fill(); } else if (player.charId === 2) { ctx.beginPath(); ctx.moveTo(screenCenterX, screenCenterY - pBodyH/2 + 5); ctx.lineTo(screenCenterX + pBodyW, screenCenterY + pBodyH/2 + 5); ctx.lineTo(screenCenterX - pBodyW, screenCenterY + pBodyH/2 + 5); ctx.fill(); }
+    if (player.charId === 0) { 
+        ctx.fillRect(screenCenterX - pBodyW/2, screenCenterY - pBodyH/2 + 5, pBodyW, pBodyH); 
+    } else if (player.charId === 1) { 
+        ctx.beginPath(); ctx.moveTo(screenCenterX - pBodyW, screenCenterY - pBodyH/2 + 5); ctx.lineTo(screenCenterX + pBodyW, screenCenterY - pBodyH/2 + 5); ctx.lineTo(screenCenterX, screenCenterY + pBodyH/2 + 5); ctx.fill(); 
+    } else if (player.charId === 2) { 
+        // Mago: stesso corpo del Recluta (quadrato)
+        ctx.fillRect(screenCenterX - pBodyW/2, screenCenterY - pBodyH/2 + 5, pBodyW, pBodyH); 
+    } else if (player.charId === 3) { 
+        ctx.beginPath(); ctx.moveTo(screenCenterX, screenCenterY - pBodyH/2 + 5); ctx.lineTo(screenCenterX + pBodyW, screenCenterY + pBodyH/2 + 5); ctx.lineTo(screenCenterX - pBodyW, screenCenterY + pBodyH/2 + 5); ctx.fill(); 
+    }
     
     if (cColor) { ctx.fillStyle = cColor; ctx.fillRect(screenCenterX - pBodyW*0.6, screenCenterY - pBodyH*0.2, pBodyW*1.2, pBodyH*0.6); ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.strokeRect(screenCenterX - pBodyW*0.6, screenCenterY - pBodyH*0.2, pBodyW*1.2, pBodyH*0.6); }
 
     ctx.fillStyle = '#00ff00'; ctx.beginPath(); ctx.arc(screenCenterX, screenCenterY - pBodyH/2, player.size * 0.6, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(screenCenterX, screenCenterY, player.pickupRange, 0, Math.PI*2); ctx.stroke();
     
-    if (eColor) { ctx.fillStyle = eColor; ctx.beginPath(); ctx.arc(screenCenterX, screenCenterY - pBodyH/2 - 2, player.size * 0.65, Math.PI, Math.PI*2); ctx.fill(); ctx.fillRect(screenCenterX - player.size*0.65, screenCenterY - pBodyH/2 - 2, player.size*1.3, 6); ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(screenCenterX, screenCenterY - pBodyH/2 - 2, player.size * 0.65, Math.PI, Math.PI*2); ctx.stroke(); }
+    if (eColor && player.charId !== 2) { ctx.fillStyle = eColor; ctx.beginPath(); ctx.arc(screenCenterX, screenCenterY - pBodyH/2 - 2, player.size * 0.65, Math.PI, Math.PI*2); ctx.fill(); ctx.fillRect(screenCenterX - player.size*0.65, screenCenterY - pBodyH/2 - 2, player.size*1.3, 6); ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(screenCenterX, screenCenterY - pBodyH/2 - 2, player.size * 0.65, Math.PI, Math.PI*2); ctx.stroke(); }
     ctx.globalAlpha = 1;
 
     ctx.font = "bold 20px Arial"; ctx.fillStyle = "white"; ctx.shadowBlur = 5; ctx.shadowColor = "black"; ctx.fillText(activePlayerName, screenCenterX, screenCenterY - pBodyH/2 - player.size - 25); ctx.shadowBlur = 0;
+
+    // Cappello da Mago per il personaggio 2 (charId 2)
+    if (player.charId === 2) {
+        let hatColor = '#4a2a8a'; // viola scuro default
+        if (eColor) {
+            // colore cappello = colore dell'elmo equipaggiato (ma l'elmo non appare)
+            hatColor = eColor;
+        }
+        let hatX = screenCenterX; let hatY = screenCenterY - pBodyH/2 - player.size * 0.6;
+        ctx.fillStyle = hatColor; ctx.shadowBlur = 12; ctx.shadowColor = hatColor;
+        // Tesa del cappello
+        ctx.beginPath(); ctx.ellipse(hatX, hatY + 4, player.size * 1.3, 5, 0, 0, Math.PI*2); ctx.fill();
+        // Corpo conico del cappello
+        ctx.beginPath(); ctx.moveTo(hatX - player.size * 0.9, hatY + 4);
+        ctx.lineTo(hatX, hatY - player.size * 1.8);
+        ctx.lineTo(hatX + player.size * 0.9, hatY + 4); ctx.fill();
+        // Stellina in cima
+        ctx.fillStyle = '#ffff00'; ctx.shadowColor = '#ffff00';
+        ctx.font = `${player.size * 0.7}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('★', hatX, hatY - player.size * 1.5);
+        ctx.shadowBlur = 0;
+    }
 
     let normalChests = chests.filter(c => !c.isSpecial && !c.isEpic && !c.isBossChest);
     if (normalChests.length > 0) { let closestChest = normalChests.reduce((prev, curr) => Math.hypot(curr.x - player.x, curr.y - player.y) < Math.hypot(prev.x - player.x, prev.y - player.y) ? curr : prev); let dist = Math.hypot(closestChest.x - player.x, closestChest.y - player.y); if (dist > 200 && dist < 1500) { let angle = Math.atan2(closestChest.y - player.y, closestChest.x - player.x); ctx.save(); ctx.translate(screenCenterX, screenCenterY); ctx.rotate(angle); ctx.fillStyle = 'gold'; ctx.shadowColor = 'yellow'; ctx.shadowBlur = 15; ctx.beginPath(); ctx.moveTo(80, 0); ctx.lineTo(60, -15); ctx.lineTo(60, 15); ctx.fill(); ctx.restore(); } }
