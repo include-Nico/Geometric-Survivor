@@ -36,7 +36,6 @@ if (dailyMissions.date !== todayStr) { dailyMissions = { date: todayStr, bossesK
 let bpSaved = JSON.parse(localStorage.getItem('survivorBattlePass'));
 export let battlePass = bpSaved ? bpSaved : { monthStart: Date.now(), bosses: 0, claims: { 15: false, 30: false, 50: false, 100: false, 150: false } };
 if(!battlePass.claims) battlePass.claims = { 15: false, 30: false, 50: false, 100: false, 150: false };
-// Migrazione: se vecchio campo weekStart esiste, rinominalo
 if(battlePass.weekStart && !battlePass.monthStart) { battlePass.monthStart = battlePass.weekStart; delete battlePass.weekStart; }
 if(!battlePass.monthStart) battlePass.monthStart = Date.now();
 if(Date.now() - battlePass.monthStart > 2592000000) { battlePass = { monthStart: Date.now(), bosses: 0, claims: { 15: false, 30: false, 50: false, 100: false, 150: false } }; localStorage.setItem('survivorBattlePass', JSON.stringify(battlePass)); }
@@ -145,15 +144,12 @@ function buildUpgradePool() {
     player.weapons.forEach(w => { 
         pool.push({ name: `<span class="upgrade-title" style="color:${w.color}">⏫ Potenzia ${w.name} (Lv.${w.level + 1})</span><span class="upgrade-desc">Danni e velocità incrementati</span>`, apply: () => { 
             w.level++;
-            // Incrementi danno standard (esclusi quelli con meccaniche speciali)
             if (w.id !== 'freezer' && w.id !== 'cerbottana' && w.id !== 'stone_orb') w.currentDamage += Math.floor(w.baseDamage * 0.4);
-            // Bonus specifici per arma
             if (w.id === 'cerbottana')    { w.poisonDamage += 5; }
             if (w.id === 'bastone_veleno'){ w.range = Math.min(350, w.range + 15); }
             if (w.id === 'stone_orb')     { w.stoneHp = (w.stoneHp || 80) + 60; w.stoneSize = Math.min(50, (w.stoneSize || 30) + 4); w.currentDamage += 15; }
             if (w.id === 'fireball_wand') { w.explodeRadius = (w.explodeRadius || 80) + 20; }
             if (w.id === 'electric_orb')  { w.chainMax = (w.chainMax || 4) + 2; w.chainRange = (w.chainRange || 150) + 20; }
-            // Riduzione cooldown
             w.currentFireRate = Math.max(5, w.currentFireRate - (w.id === 'freezer' ? 8 : (w.id === 'stone_orb' ? 12 : 5)));
             updateWeaponsUI(player); finishUpgrade(); 
         }}); 
@@ -227,7 +223,6 @@ function handleEnemyDeath(e, ei) {
         dailyMissions.bossesKilled++; saveDailyMissions();
         battlePass.bosses++; saveBattlePass(); 
 
-        // Sblocca "Il Mago" (id:3, unlockType:'boss30') quando si sconfiggono 30 boss in totale
         if (gameStats.bossesKilled >= 30 && !magoUnlocked) {
             magoUnlocked = true;
             localStorage.setItem('survivorMagoUnlocked', 'true');
@@ -271,10 +266,8 @@ function update() {
         let rt = rockTelegraphs[i]; rt.timer--;
         if (rt.timer <= 0) {
             if (rt.isMageStone) {
-                // Pietra del Mago: alta resistenza, causa danno spawn, non rimossa automaticamente
                 let stoneSize = rt.stoneSize || 30;
                 let stoneHp = rt.stoneHp || 100;
-                // Danno ai nemici nell'area di spawn
                 enemies.forEach(e => { if (!e.dead && Math.hypot(e.x - rt.x, e.y - rt.y) < stoneSize + e.size) { e.hp -= rt.stoneDamage || 25; e.hitTimer = 10; if (e.hp <= 0 && !e.dead) { e.dead = true; handleEnemyDeath(e, -1); } } });
                 rocks.push({ x: rt.x, y: rt.y, size: stoneSize, hp: stoneHp, dead: false, isMageStone: true });
                 rockTelegraphs.splice(i, 1);
@@ -287,12 +280,10 @@ function update() {
     for (let r of rocks) {
         let d = Math.hypot((player.x + moveX) - r.x, (player.y + moveY) - r.y);
         if (d < player.size + r.size) {
-            // Prova solo X
             let dx2 = Math.hypot((player.x + moveX) - r.x, player.y - r.y);
             let dy2 = Math.hypot(player.x - r.x, (player.y + moveY) - r.y);
             if (dx2 < player.size + r.size) canMoveX = false;
             if (dy2 < player.size + r.size) canMoveY = false;
-            // Sicurezza anti-incastro: se già sovrapposti spingi fuori
             let dNow = Math.hypot(player.x - r.x, player.y - r.y);
             if (dNow < player.size + r.size) {
                 let pushA = Math.atan2(player.y - r.y, player.x - r.x);
@@ -345,6 +336,11 @@ function update() {
         m.x += (tx - m.x) * 0.1; m.y += (ty - m.y) * 0.1; m.fireTimer++;
         if (m.fireTimer >= 35) { 
             let targets = enemies.filter(t => Math.hypot(t.x - m.x, t.y - m.y) <= 500); 
+            // I MiniMe sparano ai sassi normali se non ci sono nemici
+            if (targets.length === 0) {
+                targets = rocks.filter(r => !r.isMageStone && Math.hypot(r.x - m.x, r.y - m.y) <= 500);
+            }
+            
             if (targets.length > 0) { 
                 if (m.fireTimer % 4 === 0) {
                     let closest = targets.reduce((prev, curr) => Math.hypot(curr.x - m.x, curr.y - m.y) < Math.hypot(prev.x - m.x, prev.y - m.y) ? curr : prev); 
@@ -366,22 +362,25 @@ function update() {
                 explosions.push({x: player.x, y: player.y, radius: pRadius, damage: w.currentDamage, life: 15, maxLife: 15, type: 'poison'});
                 w.fireTimer = 0; return; 
             }
-            // Sfera di pietra del Mago: spawna 1 pietra alla volta lontano dal giocatore
             if (w.id === 'stone_orb') {
                 let stoneSize = w.stoneSize || 30;
                 let stoneHp = (w.stoneHp || 80) + w.level * 20;
-                // Spawn distante dal giocatore (150-220px) in direzione casuale
                 let spawnRadius = 160 + Math.random() * 60;
                 let sAngle = Math.random() * Math.PI * 2;
                 let sx = player.x + Math.cos(sAngle) * spawnRadius;
                 let sy = player.y + Math.sin(sAngle) * spawnRadius;
-                // Non spawnare se troppo vicino al giocatore (sicurezza extra)
                 if (Math.hypot(sx - player.x, sy - player.y) > player.size + stoneSize + 20) {
                     rockTelegraphs.push({ x: sx, y: sy, radius: stoneSize, timer: 50, isMageStone: true, stoneHp: stoneHp, stoneSize: stoneSize, stoneDamage: w.currentDamage });
                 }
                 w.fireTimer = 0; return;
             }
+            
             let targets = enemies.filter(t => Math.hypot(t.x - player.x, t.y - player.y) <= w.range);
+            // Mira ai sassi normali per exp se non ci sono nemici nelle vicinanze
+            if (targets.length === 0) {
+                targets = rocks.filter(r => !r.isMageStone && Math.hypot(r.x - player.x, r.y - player.y) <= w.range);
+            }
+            
             if (targets.length > 0) {
                 let closest = targets.reduce((prev, curr) => Math.hypot(curr.x - player.x, curr.y - player.y) < Math.hypot(prev.x - player.x, prev.y - player.y) ? curr : prev);
                 let angle = Math.atan2(closest.y - player.y, closest.x - player.x);
@@ -441,7 +440,6 @@ function update() {
             }
             bullets.splice(i, 1); continue; 
         }
-        // Gestione hit nemici per electric_orb (chain lightning) 
         if (b.weaponId === 'electric_orb') {
             let hitEnemy = false;
             for (let ei2 = enemies.length - 1; ei2 >= 0; ei2--) {
@@ -450,7 +448,6 @@ function update() {
                     et.hp -= b.damage; et.hitTimer = 5;
                     et.frozenTimer = 40; et.speed = et.originalSpeed * 0.5;
                     if (et.hp <= 0 && !et.dead) { et.dead = true; handleEnemyDeath(et, ei2); }
-                    // Catena sequenziale A->B->C->D: ogni salto trova il nemico più vicino non ancora colpito
                     let maxChain = b.chainMax || 3;
                     let chainRange = b.chainRange || 150;
                     let lastHit = et;
@@ -478,7 +475,6 @@ function update() {
             }
             if (hitEnemy) continue;
         }
-        // fireball_wand esplode al contatto con un nemico
         if (b.weaponId === 'fireball_wand') {
             let hitEnemy = false;
             for (let ei2 = enemies.length - 1; ei2 >= 0; ei2--) {
@@ -495,7 +491,7 @@ function update() {
         let hitRock = false;
         for (let ri = rocks.length - 1; ri >= 0; ri--) { 
             let r = rocks[ri]; 
-            if (r.isMageStone) continue; // I proiettili del giocatore attraversano le pietre del mago
+            if (r.isMageStone) continue; // I proiettili non collidono mai con le pietre del mago
             if (distToSegment(r.x, r.y, oldX, oldY, b.x, b.y) < r.size + b.size/2 + 5) { 
                 if (b.weaponId === 'granata') { explosions.push({x: b.x, y: b.y, radius: 60 + (b.level * 20), damage: b.damage, life: 20, maxLife: 20, type: 'fire'}); } 
                 else if (b.weaponId === 'freezer') { explosions.push({x: b.x, y: b.y, radius: 45 + (b.level * 10), damage: 0, life: 180, maxLife: 180, type: 'ice'}); } 
@@ -616,12 +612,10 @@ function update() {
             if (!r.dead) {
                 let distToRock = Math.hypot(e.x - r.x, e.y - r.y);
                 if (distToRock < e.size + r.size) {
-                    // Spingi il nemico fuori dalla roccia
                     let pushA = Math.atan2(e.y - r.y, e.x - r.x);
                     let overlap = (e.size + r.size) - distToRock;
                     e.x += Math.cos(pushA) * overlap;
                     e.y += Math.sin(pushA) * overlap;
-                    // I nemici danneggiano le pietre del mago col contatto
                     if (r.isMageStone && frameCount % 30 === 0) {
                         r.hp -= Math.max(1, Math.floor(e.speed * 3));
                         if (r.hp <= 0) { r.dead = true; }
@@ -657,7 +651,6 @@ function update() {
                 if (e.stateTimer % 15 === 0) { let shootA = Math.atan2(player.y - e.y, player.x - e.x); enemyBullets.push({ x: e.x, y: e.y, vx: Math.cos(shootA)*8, vy: Math.sin(shootA)*8, damage: 20, isFireball: true }); e.shotsFired++; if (e.shotsFired >= totalShots) { e.state = 'idle'; e.stateTimer = 0; } }
             }
         } else {
-            // Nemici normali: se c'è una pietra del mago più vicina del giocatore, si dirigono verso quella
             let moveTarget = { x: player.x, y: player.y };
             let distToPlayer = Math.hypot(player.x - e.x, player.y - e.y);
             let closestStoneDist = Infinity;
@@ -685,7 +678,6 @@ function update() {
                 if (b.weaponId === 'granata') { explosions.push({x: b.x, y: b.y, radius: 60 + (b.level * 20), damage: b.damage, life: 20, maxLife: 20, type: 'fire'}); } 
                 else if (b.weaponId === 'freezer') { explosions.push({x: b.x, y: b.y, radius: 45 + (b.level * 10), damage: 0, life: 180, maxLife: 180, type: 'ice'}); } 
                 else if (b.weaponId === 'cerbottana') { e.hp -= b.damage; e.hitTimer = 5; e.poisonTimer = 300; e.poisonDmg = b.poisonDmg + (b.level * 2); }
-                // fireball_wand e electric_orb sono già gestiti nel loop bullet dedicato sopra — qui non arrivano
                 else { e.hp -= b.damage; e.hitTimer = 5; }
                 bullets.splice(bi, 1); 
             } 
@@ -716,7 +708,6 @@ function drawProjectile(b, camX, camY) {
     else if (b.weaponId === 'freezer') { let s = b.size; ctx.fillStyle = b.color; ctx.save(); ctx.translate(px, py); ctx.rotate(frameCount*0.1); ctx.beginPath(); let inner=s/3; let outer=s; for(let i=0;i<8;i++){let rad=(i%2===0)?outer:inner;let a=i*Math.PI/4;ctx.lineTo(Math.cos(a)*rad,Math.sin(a)*rad);} ctx.fill(); ctx.restore(); } 
     else if (b.weaponId === 'fucile' || b.weaponId === 'uzi' || b.weaponId === 'cerbottana') { ctx.strokeStyle = b.color; ctx.lineWidth = b.size; ctx.lineCap = "round"; ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px - b.vx*1.5, py - b.vy*1.5); ctx.stroke(); }
     else if (b.weaponId === 'fireball_wand') {
-        // Palla di fuoco pulsante
         let pulse = 0.8 + 0.2 * Math.sin(frameCount * 0.3);
         let grad = ctx.createRadialGradient(px, py, b.size*0.1, px, py, b.size * pulse);
         grad.addColorStop(0, '#ffff00'); grad.addColorStop(0.4, '#ff4500'); grad.addColorStop(1, 'rgba(200,0,0,0)');
@@ -724,7 +715,6 @@ function drawProjectile(b, camX, camY) {
         ctx.beginPath(); ctx.arc(px, py, b.size * pulse, 0, Math.PI*2); ctx.fill();
     }
     else if (b.weaponId === 'electric_orb') {
-        // Sfera elettrica con archi animati
         let grad = ctx.createRadialGradient(px, py, b.size*0.1, px, py, b.size);
         grad.addColorStop(0, '#ffffff'); grad.addColorStop(0.4, '#00ccff'); grad.addColorStop(1, 'rgba(0,80,255,0)');
         ctx.fillStyle = grad; ctx.shadowBlur = 25; ctx.shadowColor = '#00ccff';
@@ -773,7 +763,6 @@ function draw() {
 
     elementalTrails.forEach(t => { let alpha = t.life / t.maxLife; ctx.fillStyle = t.type === 'ice' ? `rgba(0, 255, 255, ${alpha * 0.4})` : `rgba(255, 100, 0, ${alpha * 0.4})`; ctx.beginPath(); ctx.arc(t.x - camX, t.y - camY, t.radius, 0, Math.PI*2); ctx.fill(); });
     
-    // Rocks: pietre mago più scure e con pattern
     rocks.forEach(r => {
         let mx = r.x - camX; let my = r.y - camY;
         if (r.isMageStone) {
@@ -783,19 +772,14 @@ function draw() {
             ctx.shadowBlur = 10; ctx.shadowColor = '#8B6040';
             ctx.beginPath(); ctx.arc(mx, my, r.size, 0, Math.PI*2); ctx.fill(); ctx.stroke();
             ctx.shadowBlur = 0;
+            // Niente barra della vita per le rocce del mago
         } else {
             ctx.fillStyle = '#666'; ctx.strokeStyle = '#444'; ctx.lineWidth = 4;
             ctx.beginPath(); ctx.arc(mx, my, r.size, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-            // Barra HP solo per rocce normali
-            let hpPct = r.hp / 30;
-            ctx.fillStyle = 'rgba(0,0,0,0.5)';
-            ctx.fillRect(mx - r.size, my - r.size - 10, r.size * 2, 5);
-            ctx.fillStyle = hpPct > 0.5 ? '#4f4' : '#f84';
-            ctx.fillRect(mx - r.size, my - r.size - 10, r.size * 2 * hpPct, 5);
+            // Barra della vita nascosta per le rocce normali in base alle tue istruzioni
         }
     });
     
-    // Chain lightning arcs - fulmine zigzag animato
     electricArcs.forEach(ec => {
         let alpha = ec.life / (ec.maxLife || 8);
         let x1 = ec.x1 - camX; let y1 = ec.y1 - camY;
@@ -910,6 +894,10 @@ function draw() {
             if (w.fireTimer < 20) { angle = 0 - (Math.PI / 2) * (w.fireTimer / 20); }
         } else {
             let targets = enemies.filter(t => Math.hypot(t.x - player.x, t.y - player.y) <= w.range);
+            // Rotazione corretta verso sassi normali se non ci sono nemici (assicurandoci escluda pietre mago)
+            if (targets.length === 0) {
+                targets = rocks.filter(r => !r.isMageStone && Math.hypot(r.x - player.x, r.y - player.y) <= w.range);
+            }
             if (targets.length > 0) { 
                 let closest = targets.reduce((prev, curr) => Math.hypot(curr.x - player.x, curr.y - player.y) < Math.hypot(prev.x - player.x, prev.y - player.y) ? curr : prev); 
                 angle = Math.atan2(closest.y - player.y, closest.x - player.x); 
@@ -934,16 +922,12 @@ function draw() {
 
     ctx.fillStyle = '#00ff00'; 
     if (player.charId === 0) { 
-        // Recluta: corpo quadrato
         ctx.fillRect(screenCenterX - pBodyW/2, screenCenterY - pBodyH/2 + 5, pBodyW, pBodyH); 
     } else if (player.charId === 1) { 
-        // Punta: corpo piramidale
         ctx.beginPath(); ctx.moveTo(screenCenterX, screenCenterY - pBodyH/2 + 5); ctx.lineTo(screenCenterX + pBodyW, screenCenterY + pBodyH/2 + 5); ctx.lineTo(screenCenterX - pBodyW, screenCenterY + pBodyH/2 + 5); ctx.fill(); 
     } else if (player.charId === 2) { 
-        // Gelataio: corpo a cono (triangolo verso l'alto)
         ctx.beginPath(); ctx.moveTo(screenCenterX - pBodyW, screenCenterY - pBodyH/2 + 5); ctx.lineTo(screenCenterX + pBodyW, screenCenterY - pBodyH/2 + 5); ctx.lineTo(screenCenterX, screenCenterY + pBodyH/2 + 5); ctx.fill(); 
     } else if (player.charId === 3) { 
-        // Mago: corpo quadrato come Recluta
         ctx.fillRect(screenCenterX - pBodyW/2, screenCenterY - pBodyH/2 + 5, pBodyW, pBodyH); 
     }
     
@@ -956,22 +940,22 @@ function draw() {
 
     ctx.font = "bold 20px Arial"; ctx.fillStyle = "white"; ctx.shadowBlur = 5; ctx.shadowColor = "black"; ctx.fillText(activePlayerName, screenCenterX, screenCenterY - pBodyH/2 - player.size - 25); ctx.shadowBlur = 0;
 
-    // Cappello da Mago per il personaggio 3 (Il Mago)
+    // Cappello da Mago per il personaggio 3 (Il Mago) - Rimpicciolito
     if (player.charId === 3) {
-        let hatColor = '#4a2a8a'; // viola scuro default (senza elmo)
-        if (eColor) { hatColor = eColor; } // colore cappello = rarità elmo equipaggiato
-        let hatX = screenCenterX; let hatY = screenCenterY - pBodyH/2 - player.size * 0.6;
-        ctx.fillStyle = hatColor; ctx.shadowBlur = 12; ctx.shadowColor = hatColor;
-        // Tesa del cappello
-        ctx.beginPath(); ctx.ellipse(hatX, hatY + 4, player.size * 1.3, 5, 0, 0, Math.PI*2); ctx.fill();
-        // Corpo conico del cappello
-        ctx.beginPath(); ctx.moveTo(hatX - player.size * 0.9, hatY + 4);
-        ctx.lineTo(hatX, hatY - player.size * 1.8);
-        ctx.lineTo(hatX + player.size * 0.9, hatY + 4); ctx.fill();
-        // Stellina in cima
+        let hatColor = '#4a2a8a';
+        if (eColor) { hatColor = eColor; } 
+        let hatX = screenCenterX; let hatY = screenCenterY - pBodyH/2 - player.size * 0.45; // abbassato leggermente
+        ctx.fillStyle = hatColor; ctx.shadowBlur = 10; ctx.shadowColor = hatColor;
+        // Tesa del cappello ridotta (da 1.3 a 1.0)
+        ctx.beginPath(); ctx.ellipse(hatX, hatY + 4, player.size * 1.0, 4, 0, 0, Math.PI*2); ctx.fill();
+        // Corpo conico del cappello ristretto (da 0.9 a 0.7) e abbassato (da 1.8 a 1.4)
+        ctx.beginPath(); ctx.moveTo(hatX - player.size * 0.7, hatY + 4);
+        ctx.lineTo(hatX, hatY - player.size * 1.4);
+        ctx.lineTo(hatX + player.size * 0.7, hatY + 4); ctx.fill();
+        // Stellina proporzionata
         ctx.fillStyle = '#ffff00'; ctx.shadowColor = '#ffff00';
-        ctx.font = `${player.size * 0.7}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('★', hatX, hatY - player.size * 1.5);
+        ctx.font = `${player.size * 0.6}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('★', hatX, hatY - player.size * 1.2);
         ctx.shadowBlur = 0;
     }
 
@@ -994,48 +978,32 @@ function draw() {
 // --- ESPOSIZIONE GLOBALE PER HTML (LOGICA E NEGOZIO) ---
 // --- BINDING PULSANTI (evita onclick nell'HTML con moduli ES) ---
 function bindButtons() {
-    // Menu principale
     document.getElementById('btn-gioca').addEventListener('click', startGame);
     document.getElementById('btn-personaggi').addEventListener('click', showCharacterSelect);
     document.getElementById('btn-equip').addEventListener('click', showEquipmentMenu);
     document.getElementById('btn-battlepass').addEventListener('click', showBattlePassModal);
     document.getElementById('btn-missions').addEventListener('click', showMissionsModal);
     document.getElementById('btn-settings').addEventListener('click', showSettingsModal);
-
-    // Back buttons
     document.getElementById('btn-back-equip').addEventListener('click', backToMenu);
     document.getElementById('btn-back-char').addEventListener('click', backToMenu);
     document.getElementById('btn-back-gameover').addEventListener('click', backToMenu);
-
-    // Game over
     document.getElementById('btn-rigioca').addEventListener('click', startGame);
-
-    // Pausa
     document.getElementById('pause-btn').addEventListener('click', togglePause);
     document.getElementById('btn-resume').addEventListener('click', togglePause);
     document.getElementById('btn-surrender').addEventListener('click', surrender);
-
-    // Modali chiusura
     document.getElementById('btn-close-bp').addEventListener('click', closeBattlePassModal);
     document.getElementById('btn-close-settings').addEventListener('click', closeSettingsModal);
     document.getElementById('btn-close-missions').addEventListener('click', closeMissionsModal);
-
-    // Settings tabs
     document.getElementById('tab-btn-cheat').addEventListener('click', () => switchSettingsTab('cheat'));
     document.getElementById('tab-btn-stats').addEventListener('click', () => switchSettingsTab('stats'));
     document.getElementById('btn-cheat-confirm').addEventListener('click', checkCheatCode);
-
-    // Replace modal
     document.getElementById('rep-btn0').addEventListener('click', () => confirmReplace(0));
     document.getElementById('rep-btn1').addEventListener('click', () => confirmReplace(1));
     document.getElementById('rep-btn2').addEventListener('click', () => confirmReplace(2));
     document.getElementById('btn-cancel-replace').addEventListener('click', cancelReplace);
-
-    // Input nome
     document.getElementById('player-name-input').addEventListener('keyup', savePlayerName);
     document.getElementById('player-name-input').addEventListener('blur', savePlayerName);
 
-    // Esponi ancora window.xxx per le funzioni chiamate dinamicamente dall'HTML generato (claimBattlePass, buyEquip, ecc.)
     window.claimBattlePass = claimBattlePass;
     window.claimMission = claimMission;
     window.buyEquip = buyEquip;
@@ -1048,7 +1016,5 @@ function bindButtons() {
     window.closeBossModal = closeBossModal;
 }
 
-// INIZIALIZZA TUTTO AL CARICAMENTO
 showMenu();
 bindButtons();
-
