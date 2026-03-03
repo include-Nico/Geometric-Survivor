@@ -48,7 +48,7 @@ export const WEAPONS_DB = {
     cerbottana: { id: 'cerbottana', name: "Cerbottana", baseDamage: 2, fireRate: 20, range: 700, speed: 22, weaponSize: 20, bulletSize: 4, color: "#800080", muzzleOffset: 30, poisonDamage: 5 },
     fireball_wand: { id: 'fireball_wand', name: "Palla di Fuoco", baseDamage: 35, fireRate: 70, range: 700, speed: 9, weaponSize: 18, bulletSize: 14, color: "#ff4400", muzzleOffset: 30, explodeRadius: 80 },
     electric_orb: { id: 'electric_orb', name: "Sfera Elettrica", baseDamage: 20, fireRate: 55, range: 650, speed: 11, weaponSize: 18, bulletSize: 12, color: "#00ccff", muzzleOffset: 30, chainMax: 4, chainRange: 150, chainDamage: 10 },
-    stone_orb: { id: 'stone_orb', name: "Sfera di Pietra", baseDamage: 25, fireRate: 110, range: 300, speed: 0, weaponSize: 18, bulletSize: 0, color: "#8B6544", muzzleOffset: 0, stoneHp: 80, stoneSize: 30 }
+    stone_orb: { id: 'stone_orb', name: "Sfera di Pietra", baseDamage: 25, fireRate: 180, range: 300, speed: 0, weaponSize: 18, bulletSize: 0, color: "#8B6544", muzzleOffset: 0, stoneHp: 80, stoneSize: 30 }
 };
 
 // Ordine sblocco: Recluta lv1, Punta lv10, Gelataio lv15, Mago sconfiggi 30 boss
