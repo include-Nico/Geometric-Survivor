@@ -48,7 +48,7 @@ export let isTouchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoin
 export let controlMode = isTouchDevice ? 'mobile' : 'pc';
 
 // --- VARIABILI DI GIOCO ---
-export let player = {}; export let enemies = []; export let bullets = []; export let beams = []; export let explosions = []; export let elementalTrails = []; export let enemyBullets = []; export let gems = []; export let rocks = []; export let chests = []; export let electricArcs = [];
+export let player = {}; export let enemies = []; export let bullets = []; export let beams = []; export let explosions = []; export let elementalTrails = []; export let enemyBullets = []; export let gems = []; export let rocks = []; export let chests = []; export let electricArcs = []; export let decoys = [];
 export let xp = 0; export let xpNeeded = 15; export let level = 1; export let currentChoices = []; export let pendingWeapon = null; export let sessionCrystals = 0;
 export let bossArena = { active: false, x: 0, y: 0, radius: 800 }; export let rockTelegraphs = [];
 
@@ -117,12 +117,11 @@ function startGame() {
     rockTelegraphs = [];
 
     player = { x: 0, y: 0, size: 20, speed: 4, hp: 100, maxHp: 100, pickupRange: 80, weapons: [], maxWeapons: maxWeps, charLevel: cLevel, shield: 0, maxShield: 0, shieldRegen: 0.2, lastHitTimer: 0, iFrames: 0, hasOrbs: false, orbLevel: 0, orbAngle: 0, orbTrail: [], miniMes: [], lastBossLevel: 0, charId: selectedCharId, hasRevived: false };
-    enemies = []; bullets = []; beams = []; explosions = []; elementalTrails = []; enemyBullets = []; gems = []; rocks = []; chests = []; electricArcs = []; rockTelegraphs = []; xp = 0; level = 1; xpNeeded = 15; frameCount = 0; keys = {}; paused = false; joyX = 0; joyY = 0;
+    enemies = []; bullets = []; beams = []; explosions = []; elementalTrails = []; enemyBullets = []; gems = []; rocks = []; chests = []; electricArcs = []; rockTelegraphs = []; decoys = []; xp = 0; level = 1; xpNeeded = 15; frameCount = 0; keys = {}; paused = false; joyX = 0; joyY = 0;
     bossArena = { active: false, x: 0, y: 0, radius: 800 };
     
     for(let i = 0; i < 15; i++) { let valid = false; let attempts = 0; let rx, ry, rSize; while(!valid && attempts < 10) { let angle = Math.random() * Math.PI * 2; let dist = 300 + Math.random() * 1500; rx = Math.cos(angle) * dist; ry = Math.sin(angle) * dist; rSize = 25 + Math.random() * 20; valid = isPositionFree(rx, ry, rSize); attempts++; } if (valid) rocks.push({ x: rx, y: ry, size: rSize, hp: 30 }); }
     
-    // Assegna la prima arma corrispondente al personaggio selezionato (es. uzi per il Mago, pistola per gli altri)
     let startingWeaponId = CHARACTERS.find(c => c.id === selectedCharId).weapons[0];
     giveWeapon(WEAPONS_DB[startingWeaponId]); 
 
@@ -149,13 +148,13 @@ function buildUpgradePool() {
     player.weapons.forEach(w => { 
         pool.push({ name: `<span class="upgrade-title" style="color:${w.color}">⏫ Potenzia ${w.name} (Lv.${w.level + 1})</span><span class="upgrade-desc">Danni e velocità incrementati</span>`, apply: () => { 
             w.level++;
-            if (w.id !== 'freezer' && w.id !== 'cerbottana' && w.id !== 'stone_orb') w.currentDamage += Math.floor(w.baseDamage * 0.4);
+            if (w.id !== 'freezer' && w.id !== 'cerbottana' && w.id !== 'mirror_orb') w.currentDamage += Math.floor(w.baseDamage * 0.4);
             if (w.id === 'cerbottana')    { w.poisonDamage += 5; }
             if (w.id === 'bastone_veleno'){ w.range = Math.min(350, w.range + 15); }
-            if (w.id === 'stone_orb')     { w.stoneHp = (w.stoneHp || 80) + 60; w.stoneSize = Math.min(50, (w.stoneSize || 30) + 4); w.currentDamage += 15; }
+            if (w.id === 'mirror_orb')    { w.decoyHp = (w.decoyHp || 100) + 50; w.currentDamage += 5; } // il danno va all'Uzi del fantoccio
             if (w.id === 'fireball_wand') { w.explodeRadius = (w.explodeRadius || 80) + 20; }
             if (w.id === 'electric_orb')  { w.chainMax = (w.chainMax || 4) + 2; w.chainRange = (w.chainRange || 150) + 20; }
-            w.currentFireRate = Math.max(5, w.currentFireRate - (w.id === 'freezer' ? 8 : (w.id === 'stone_orb' ? 12 : 5)));
+            w.currentFireRate = Math.max(5, w.currentFireRate - (w.id === 'freezer' ? 8 : (w.id === 'mirror_orb' ? 10 : 5)));
             updateWeaponsUI(player); finishUpgrade(); 
         }}); 
     });
@@ -267,14 +266,13 @@ function update() {
         }
     }
     
+    // Gestione Rock/Decoy Telegraphs
     for (let i = rockTelegraphs.length - 1; i >= 0; i--) {
         let rt = rockTelegraphs[i]; rt.timer--;
         if (rt.timer <= 0) {
-            if (rt.isMageStone) {
-                let stoneSize = rt.stoneSize || 30;
-                let stoneHp = rt.stoneHp || 100;
-                enemies.forEach(e => { if (!e.dead && Math.hypot(e.x - rt.x, e.y - rt.y) < stoneSize + e.size) { e.hp -= rt.stoneDamage || 25; e.hitTimer = 10; if (e.hp <= 0 && !e.dead) { e.dead = true; handleEnemyDeath(e, -1); } } });
-                rocks.push({ x: rt.x, y: rt.y, size: stoneSize, hp: stoneHp, dead: false, isMageStone: true });
+            if (rt.isDecoy) {
+                // Spawna il fantoccio olografico
+                decoys.push({ x: rt.x, y: rt.y, hp: rt.decoyHp, maxHp: rt.decoyHp, life: 600, fireTimer: 0, damage: rt.decoyDamage, size: player.size, charId: player.charId });
                 rockTelegraphs.splice(i, 1);
             } else {
                 if (isPositionFree(rt.x, rt.y, rt.radius)) { rocks.push({ x: rt.x, y: rt.y, size: rt.radius, hp: 60, dead: false }); }
@@ -282,6 +280,8 @@ function update() {
             }
         }
     }
+
+    // Gestione Rocce (Collisioni col player)
     for (let r of rocks) {
         let d = Math.hypot((player.x + moveX) - r.x, (player.y + moveY) - r.y);
         if (d < player.size + r.size) {
@@ -308,6 +308,26 @@ function update() {
         } 
     }
     if (player.iFrames > 0) player.iFrames--;
+
+    // Logica Decoys (Fantocci che sparano Uzi)
+    for (let i = decoys.length - 1; i >= 0; i--) {
+        let d = decoys[i];
+        d.life--;
+        d.fireTimer++;
+        if (d.fireTimer >= 20) { // Spara velocemente a raffica come l'Uzi
+            let targets = enemies.filter(t => Math.hypot(t.x - d.x, t.y - d.y) <= 400);
+            if (targets.length > 0) {
+                let closest = targets.reduce((prev, curr) => Math.hypot(curr.x - d.x, curr.y - d.y) < Math.hypot(prev.x - d.x, prev.y - d.y) ? curr : prev); 
+                let angle = Math.atan2(closest.y - d.y, closest.x - d.x);
+                bullets.push({ x: d.x, y: d.y, startX: d.x, startY: d.y, vx: Math.cos(angle)*18, vy: Math.sin(angle)*18, damage: d.damage, size: 3, color: "yellow", range: 400, weaponId: 'uzi' });
+            }
+            d.fireTimer = 0;
+        }
+        if (d.life <= 0 || d.hp <= 0) {
+            explosions.push({x: d.x, y: d.y, radius: 50, damage: d.damage * 2, life: 15, maxLife: 15, type: 'normal'}); // Esplosione quando muoiono/scadono
+            decoys.splice(i, 1);
+        }
+    }
 
     if (player.hasOrbs && player.orbLevel > 0) { 
         player.orbAngle += 0.05; 
@@ -342,7 +362,7 @@ function update() {
         if (m.fireTimer >= 35) { 
             let targets = enemies.filter(t => Math.hypot(t.x - m.x, t.y - m.y) <= 500); 
             if (targets.length === 0) {
-                targets = rocks.filter(r => !r.isMageStone && Math.hypot(r.x - m.x, r.y - m.y) <= 500);
+                targets = rocks.filter(r => Math.hypot(r.x - m.x, r.y - m.y) <= 500);
             }
             
             if (targets.length > 0) { 
@@ -366,22 +386,20 @@ function update() {
                 explosions.push({x: player.x, y: player.y, radius: pRadius, damage: w.currentDamage, life: 15, maxLife: 15, type: 'poison'});
                 w.fireTimer = 0; return; 
             }
-            if (w.id === 'stone_orb') {
-                let stoneSize = w.stoneSize || 30;
-                let stoneHp = (w.stoneHp || 80) + w.level * 20;
-                let spawnRadius = 160 + Math.random() * 60;
+            if (w.id === 'mirror_orb') {
+                // Spawna il fantoccio (telegraph per dare preavviso ai nemici o per grafica spawn)
+                let decoyHp = (w.decoyHp || 100) + w.level * 30;
+                let spawnRadius = 120 + Math.random() * 40;
                 let sAngle = Math.random() * Math.PI * 2;
                 let sx = player.x + Math.cos(sAngle) * spawnRadius;
                 let sy = player.y + Math.sin(sAngle) * spawnRadius;
-                if (Math.hypot(sx - player.x, sy - player.y) > player.size + stoneSize + 20) {
-                    rockTelegraphs.push({ x: sx, y: sy, radius: stoneSize, timer: 50, isMageStone: true, stoneHp: stoneHp, stoneSize: stoneSize, stoneDamage: w.currentDamage });
-                }
+                rockTelegraphs.push({ x: sx, y: sy, radius: player.size, timer: 30, isDecoy: true, decoyHp: decoyHp, decoyDamage: w.currentDamage });
                 w.fireTimer = 0; return;
             }
             
             let targets = enemies.filter(t => Math.hypot(t.x - player.x, t.y - player.y) <= w.range);
             if (targets.length === 0) {
-                targets = rocks.filter(r => !r.isMageStone && Math.hypot(r.x - player.x, r.y - player.y) <= w.range);
+                targets = rocks.filter(r => Math.hypot(r.x - player.x, r.y - player.y) <= w.range);
             }
             
             if (targets.length > 0) {
@@ -408,26 +426,23 @@ function update() {
                                 if (e.hp <= 0 && !e.dead) { e.dead = true; handleEnemyDeath(e, -1); }
                             }
                         });
-                        rocks.forEach(r => { if (r.hp > 0 && !r.isMageStone && distToSegment(r.x, r.y, spawnX, spawnY, endX, endY) < r.size + 20) { r.hp -= w.currentDamage; if(r.hp <= 0 && !r.dead){ r.dead=true; gems.push({ x: r.x, y: r.y, isSuper: true }); } } });
+                        rocks.forEach(r => { if (r.hp > 0 && distToSegment(r.x, r.y, spawnX, spawnY, endX, endY) < r.size + 20) { r.hp -= w.currentDamage; if(r.hp <= 0 && !r.dead){ r.dead=true; gems.push({ x: r.x, y: r.y, isSuper: true }); } } });
                     }
                 } else if (w.id === 'electric_orb') {
-                    // Saetta Istantanea - Logica Scossa a Catena
-                    let baseDmg = w.currentDamage * 0.45; // Ridotto per NON instakillare ai primi livelli
-                    if (w.level >= 6) baseDmg *= 2; // Recupera danno letale ad alti livelli
+                    let baseDmg = w.currentDamage * 0.45; 
+                    if (w.level >= 6) baseDmg *= 2; 
                     
-                    let maxChain = 3 + Math.floor((w.level - 1) / 2); // 3 rimbalzi a Lv1
+                    let maxChain = 3 + Math.floor((w.level - 1) / 2);
                     let chainRange = w.chainRange || 180;
                     
                     closest.hp -= baseDmg; closest.hitTimer = 5; closest.electrifiedTimer = 20;
                     if (closest.hp <= 0 && !closest.dead) { closest.dead = true; handleEnemyDeath(closest, -1); }
                     
-                    // Disegna l'arco dal giocatore al primo bersaglio
                     electricArcs.push({ x1: spawnX, y1: spawnY, x2: closest.x, y2: closest.y, life: 18, maxLife: 18 });
                     
                     let lastHit = closest;
                     let alreadyHit = new Set([closest]);
                     
-                    // Salti della catena
                     for (let c = 0; c < maxChain; c++) {
                         let nextTarget = null; let bestDist = Infinity;
                         enemies.forEach(en => {
@@ -438,9 +453,9 @@ function update() {
                         });
                         if (!nextTarget) break; 
                         
-                        nextTarget.hp -= baseDmg * 0.85; // il danno scala leggermente ad ogni salto
+                        nextTarget.hp -= baseDmg * 0.85; 
                         nextTarget.hitTimer = 5; 
-                        nextTarget.electrifiedTimer = 20; // Visual effect del nemico in shock
+                        nextTarget.electrifiedTimer = 20; 
                         
                         if (nextTarget.hp <= 0 && !nextTarget.dead) { nextTarget.dead = true; handleEnemyDeath(nextTarget, -1); }
                         
@@ -479,14 +494,12 @@ function update() {
             bullets.splice(i, 1); continue; 
         }
 
-        // Il check di collisione della fireball
         if (b.weaponId === 'fireball_wand') {
             let hitEnemy = false;
             for (let ei2 = enemies.length - 1; ei2 >= 0; ei2--) {
                 let et = enemies[ei2];
                 if (!et.dead && Math.hypot(b.x - et.x, b.y - et.y) < et.size + b.size) {
                     let expR = (b.explodeRadius || 80) + ((b.level || 1) - 1) * 20;
-                    // Genera esplosione infuocata al contatto col nemico
                     explosions.push({x: b.x, y: b.y, radius: expR, damage: b.damage, life: 25, maxLife: 25, type: 'fire'});
                     hitEnemy = true;
                     bullets.splice(i, 1); break;
@@ -498,7 +511,6 @@ function update() {
         let hitRock = false;
         for (let ri = rocks.length - 1; ri >= 0; ri--) { 
             let r = rocks[ri]; 
-            if (r.isMageStone) continue; 
             if (distToSegment(r.x, r.y, oldX, oldY, b.x, b.y) < r.size + b.size/2 + 5) { 
                 if (b.weaponId === 'granata') { explosions.push({x: b.x, y: b.y, radius: 60 + (b.level * 20), damage: b.damage, life: 20, maxLife: 20, type: 'fire'}); } 
                 else if (b.weaponId === 'freezer') { explosions.push({x: b.x, y: b.y, radius: 45 + (b.level * 10), damage: 0, life: 180, maxLife: 180, type: 'ice'}); } 
@@ -523,13 +535,12 @@ function update() {
         else if (exp.type === 'poison') {
             if (exp.life === exp.maxLife) { 
                 enemies.forEach(e => { if (!e.dead && Math.hypot(e.x - exp.x, e.y - exp.y) < exp.radius + e.size) { e.hp -= exp.damage; e.hitTimer = 5; e.poisonTimer = 30; e.poisonDmg = exp.damage; if (e.hp <= 0 && !e.dead) { e.dead = true; handleEnemyDeath(e, -1); } } });
-                rocks.forEach(r => { if (!r.dead && !r.isMageStone && Math.hypot(r.x - exp.x, r.y - exp.y) < exp.radius + r.size) { r.hp -= exp.damage; if (r.hp <= 0 && !r.dead) { r.dead=true; gems.push({ x: r.x, y: r.y, isSuper: true }); } } });
+                rocks.forEach(r => { if (!r.dead && Math.hypot(r.x - exp.x, r.y - exp.y) < exp.radius + r.size) { r.hp -= exp.damage; if (r.hp <= 0 && !r.dead) { r.dead=true; gems.push({ x: r.x, y: r.y, isSuper: true }); } } });
             }
         } else {
-            // Effettua il danno dell'esplosione fire ad area
             if (exp.life === exp.maxLife) { 
                 enemies.forEach(e => { if (!e.dead && Math.hypot(e.x - exp.x, e.y - exp.y) < exp.radius + e.size) { e.hp -= exp.damage; e.hitTimer = 5; if (applyIce) { e.frozenTimer = 180; e.speed = e.originalSpeed * 0.2; } if (applyFire) { e.burnTimer = 180; } if (e.hp <= 0 && !e.dead) { e.dead = true; handleEnemyDeath(e, -1); } } });
-                rocks.forEach(r => { if (!r.dead && !r.isMageStone && Math.hypot(r.x - exp.x, r.y - exp.y) < exp.radius + r.size) { r.hp -= exp.damage; if (r.hp <= 0 && !r.dead) { r.dead=true; gems.push({ x: r.x, y: r.y, isSuper: true }); } } });
+                rocks.forEach(r => { if (!r.dead && Math.hypot(r.x - exp.x, r.y - exp.y) < exp.radius + r.size) { r.hp -= exp.damage; if (r.hp <= 0 && !r.dead) { r.dead=true; gems.push({ x: r.x, y: r.y, isSuper: true }); } } });
             }
         }
         exp.life--;
@@ -620,24 +631,22 @@ function update() {
             if (Math.hypot(e.x - bossArena.x, e.y - bossArena.y) < bossArena.radius + e.size) { let pushA = Math.atan2(e.y - bossArena.y, e.x - bossArena.x); e.x = bossArena.x + Math.cos(pushA) * (bossArena.radius + e.size); e.y = bossArena.y + Math.sin(pushA) * (bossArena.radius + e.size); }
         }
         
-        for (let r of rocks) {
-            if (!r.dead) {
-                let distToRock = Math.hypot(e.x - r.x, e.y - r.y);
-                if (distToRock < e.size + r.size) {
-                    let pushA = Math.atan2(e.y - r.y, e.x - r.x);
-                    let overlap = (e.size + r.size) - distToRock;
-                    e.x += Math.cos(pushA) * overlap;
-                    e.y += Math.sin(pushA) * overlap;
-                    if (r.isMageStone && frameCount % 30 === 0) {
-                        r.hp -= Math.max(1, Math.floor(e.speed * 3));
-                        if (r.hp <= 0) { r.dead = true; }
-                    }
+        // Danno e pushback dei nemici contro i Fantocci
+        for (let d of decoys) {
+            let distToDecoy = Math.hypot(e.x - d.x, e.y - d.y);
+            if (distToDecoy < e.size + d.size) {
+                let pushA = Math.atan2(e.y - d.y, e.x - d.x);
+                let overlap = (e.size + d.size) - distToDecoy;
+                e.x += Math.cos(pushA) * overlap;
+                e.y += Math.sin(pushA) * overlap;
+                if (frameCount % 30 === 0) {
+                    d.hp -= Math.max(1, Math.floor(e.speed * 3));
                 }
             }
         }
 
         if (e.hitTimer > 0) e.hitTimer--;
-        if (e.electrifiedTimer > 0) e.electrifiedTimer--; // Timer per effetto visivo "shock"
+        if (e.electrifiedTimer > 0) e.electrifiedTimer--;
         if (e.frozenTimer > 0) { e.frozenTimer--; if (e.frozenTimer <= 0) e.speed = e.originalSpeed; }
         if (e.burnTimer > 0) { e.burnTimer--; if (e.burnTimer % 30 === 0) { e.hp -= 10; e.hitTimer = 5; if(e.hp <= 0 && !e.dead) { e.dead=true; handleEnemyDeath(e, ei); continue; } } }
         if (e.poisonTimer > 0) { e.poisonTimer--; if (e.poisonTimer % 20 === 0) { e.hp -= e.poisonDmg; e.hitTimer = 5; if(e.hp <= 0 && !e.dead) { e.dead=true; handleEnemyDeath(e, ei); continue; } } }
@@ -664,16 +673,15 @@ function update() {
                 if (e.stateTimer % 15 === 0) { let shootA = Math.atan2(player.y - e.y, player.x - e.x); enemyBullets.push({ x: e.x, y: e.y, vx: Math.cos(shootA)*8, vy: Math.sin(shootA)*8, damage: 20, isFireball: true }); e.shotsFired++; if (e.shotsFired >= totalShots) { e.state = 'idle'; e.stateTimer = 0; } }
             }
         } else {
+            // Target prioritario: Player o Fantoccio (Decoy) più vicino
             let moveTarget = { x: player.x, y: player.y };
             let distToPlayer = Math.hypot(player.x - e.x, player.y - e.y);
-            let closestStoneDist = Infinity;
-            for (let r of rocks) {
-                if (r.isMageStone && !r.dead) {
-                    let d = Math.hypot(r.x - e.x, r.y - e.y);
-                    if (d < distToPlayer && d < closestStoneDist) {
-                        closestStoneDist = d;
-                        moveTarget = r;
-                    }
+            let closestDecoyDist = Infinity;
+            for (let d of decoys) {
+                let dist = Math.hypot(d.x - e.x, d.y - e.y);
+                if (dist < distToPlayer && dist < closestDecoyDist) {
+                    closestDecoyDist = dist;
+                    moveTarget = d;
                 }
             }
             let moveAngle = Math.atan2(moveTarget.y - e.y, moveTarget.x - e.x);
@@ -691,9 +699,7 @@ function update() {
                 if (b.weaponId === 'granata') { explosions.push({x: b.x, y: b.y, radius: 60 + (b.level * 20), damage: b.damage, life: 20, maxLife: 20, type: 'fire'}); } 
                 else if (b.weaponId === 'freezer') { explosions.push({x: b.x, y: b.y, radius: 45 + (b.level * 10), damage: 0, life: 180, maxLife: 180, type: 'ice'}); } 
                 else if (b.weaponId === 'cerbottana') { e.hp -= b.damage; e.hitTimer = 5; e.poisonTimer = 300; e.poisonDmg = b.poisonDmg + (b.level * 2); }
-                else if (b.weaponId === 'fireball_wand') { 
-                    // Il danno esplosivo gestisce tutto, non servono i danni sul target principale
-                }
+                else if (b.weaponId === 'fireball_wand') {}
                 else { e.hp -= b.damage; e.hitTimer = 5; }
                 bullets.splice(bi, 1); 
             } 
@@ -753,13 +759,13 @@ function draw() {
     }
 
     rockTelegraphs.forEach(rt => {
-        if (rt.isMageStone) {
-            let alpha = 1 - (rt.timer / 40);
-            ctx.strokeStyle = `rgba(160, 100, 40, ${0.5 + alpha * 0.5})`; ctx.lineWidth = 3; ctx.setLineDash([5, 3]);
+        if (rt.isDecoy) {
+            let alpha = 1 - (rt.timer / 30);
+            ctx.strokeStyle = `rgba(0, 255, 255, ${0.5 + alpha * 0.5})`; ctx.lineWidth = 3; ctx.setLineDash([5, 3]);
             ctx.beginPath(); ctx.arc(rt.x - camX, rt.y - camY, rt.radius, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]);
-            ctx.fillStyle = `rgba(120, 80, 30, ${alpha * 0.3})`; ctx.fill();
+            ctx.fillStyle = `rgba(0, 200, 255, ${alpha * 0.3})`; ctx.fill();
             ctx.font = "18px Arial"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-            ctx.fillStyle = "white"; ctx.fillText("⛰️", rt.x - camX, rt.y - camY);
+            ctx.fillStyle = "white"; ctx.fillText("👤", rt.x - camX, rt.y - camY);
         } else {
             ctx.strokeStyle = "red"; ctx.lineWidth = 3;
             ctx.beginPath(); ctx.arc(rt.x - camX, rt.y - camY, rt.radius, 0, Math.PI * 2); ctx.stroke();
@@ -773,19 +779,33 @@ function draw() {
     
     rocks.forEach(r => {
         let mx = r.x - camX; let my = r.y - camY;
-        if (r.isMageStone) {
-            let grad = ctx.createRadialGradient(mx - r.size*0.2, my - r.size*0.2, r.size*0.1, mx, my, r.size);
-            grad.addColorStop(0, '#b08850'); grad.addColorStop(0.6, '#7a5c35'); grad.addColorStop(1, '#4a3020');
-            ctx.fillStyle = grad; ctx.strokeStyle = '#2a1a0a'; ctx.lineWidth = 3;
-            ctx.shadowBlur = 10; ctx.shadowColor = '#8B6040';
-            ctx.beginPath(); ctx.arc(mx, my, r.size, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-            ctx.shadowBlur = 0;
-        } else {
-            ctx.fillStyle = '#666'; ctx.strokeStyle = '#444'; ctx.lineWidth = 4;
-            ctx.beginPath(); ctx.arc(mx, my, r.size, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-        }
+        ctx.fillStyle = '#666'; ctx.strokeStyle = '#444'; ctx.lineWidth = 4;
+        ctx.beginPath(); ctx.arc(mx, my, r.size, 0, Math.PI*2); ctx.fill(); ctx.stroke();
     });
     
+    // Disegno Fantocci (Olografici)
+    decoys.forEach(d => {
+        let screenCenterX = d.x - camX; let screenCenterY = d.y - camY;
+        ctx.save();
+        ctx.globalAlpha = 0.6 + 0.2 * Math.sin(frameCount * 0.2); // Pulsa come un ologramma
+        
+        let pBodyW = d.size * 1.2; let pBodyH = d.size * 1.8;
+        ctx.fillStyle = '#00ffff'; // Colore olografico
+        ctx.shadowBlur = 15; ctx.shadowColor = '#00ffff';
+        
+        ctx.fillRect(screenCenterX - pBodyW/2, screenCenterY - pBodyH/2 + 5, pBodyW, pBodyH); 
+        ctx.beginPath(); ctx.arc(screenCenterX, screenCenterY - pBodyH/2, d.size * 0.6, 0, Math.PI*2); ctx.fill();
+        
+        if (d.charId === 3) {
+            let hatColor = '#4a2a8a';
+            let hatX = screenCenterX; let hatY = screenCenterY - pBodyH/2 - d.size * 0.45;
+            ctx.fillStyle = hatColor; ctx.beginPath(); ctx.ellipse(hatX, hatY + 4, d.size * 1.0, 4, 0, 0, Math.PI*2); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(hatX - d.size * 0.7, hatY + 4); ctx.lineTo(hatX, hatY - d.size * 1.4); ctx.lineTo(hatX + d.size * 0.7, hatY + 4); ctx.fill();
+            ctx.fillStyle = '#ffff00'; ctx.font = `${d.size * 0.6}px Arial`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('★', hatX, hatY - d.size * 1.2);
+        }
+        ctx.restore();
+    });
+
     electricArcs.forEach(ec => {
         let alpha = ec.life / (ec.maxLife || 8);
         let x1 = ec.x1 - camX; let y1 = ec.y1 - camY;
@@ -815,7 +835,6 @@ function draw() {
         if(exp.type === 'ice') { ctx.fillStyle = `rgba(0, 255, 255, ${alpha * 0.4})`; ctx.beginPath(); ctx.arc(exp.x - camX, exp.y - camY, exp.radius, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = `rgba(100, 255, 255, ${alpha})`; ctx.lineWidth = 2; ctx.stroke(); } 
         else if(exp.type === 'poison') { ctx.fillStyle = `rgba(0, 255, 0, ${alpha * 0.4})`; ctx.beginPath(); ctx.arc(exp.x - camX, exp.y - camY, exp.radius, 0, Math.PI*2); ctx.fill(); ctx.strokeStyle = `rgba(0, 200, 0, ${alpha})`; ctx.lineWidth = 3; ctx.stroke(); } 
         else { 
-            // Grafica ad area del Fireball potenziata con bagliore interno
             ctx.fillStyle = `rgba(255, 80, 0, ${alpha * 0.5})`; 
             ctx.beginPath(); ctx.arc(exp.x - camX, exp.y - camY, exp.radius, 0, Math.PI*2); ctx.fill(); 
             ctx.strokeStyle = `rgba(255, 200, 0, ${alpha})`; ctx.lineWidth = 3; ctx.stroke();
@@ -876,7 +895,6 @@ function draw() {
         let bx = e.x - camX; let by = e.y - camY; 
         
         let currentFill = e.color;
-        // La visuale dell'effetto 'shockato' (lampeggia chiaro ciano e bianco)
         if (e.electrifiedTimer > 0) currentFill = (frameCount % 4 < 2) ? "#00ffff" : "#ffffff";
         else if (e.hitTimer > 0) currentFill = "white"; 
         else if (e.frozenTimer > 0) currentFill = "#aaddff"; 
@@ -891,7 +909,6 @@ function draw() {
         ctx.fillStyle = currentFill; ctx.fillRect(bx - bodyW/2, by - bodyH/2, bodyW, bodyH); ctx.beginPath(); ctx.arc(bx, by - bodyH/2 - e.size*0.3, e.size * 0.9, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0; 
         if(e.type === 'miniboss') { ctx.fillStyle = 'black'; ctx.fillRect(bx - 40, by - e.size*2.5, 80, 8); ctx.fillStyle = 'red'; ctx.fillRect(bx - 40, by - e.size*2.5, 80 * (Math.max(0, e.hp)/e.maxHp), 8); } 
 
-        // Scintille visive per i nemici elettrificati
         if (e.electrifiedTimer > 0) {
             ctx.strokeStyle = "cyan"; ctx.lineWidth = 2; ctx.beginPath();
             let r = e.size * 1.5;
@@ -920,7 +937,7 @@ function draw() {
         } else {
             let targets = enemies.filter(t => Math.hypot(t.x - player.x, t.y - player.y) <= w.range);
             if (targets.length === 0) {
-                targets = rocks.filter(r => !r.isMageStone && Math.hypot(r.x - player.x, r.y - player.y) <= w.range);
+                targets = rocks.filter(r => Math.hypot(r.x - player.x, r.y - player.y) <= w.range);
             }
             if (targets.length > 0) { 
                 let closest = targets.reduce((prev, curr) => Math.hypot(curr.x - player.x, curr.y - player.y) < Math.hypot(prev.x - player.x, prev.y - player.y) ? curr : prev); 
