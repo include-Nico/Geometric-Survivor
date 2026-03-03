@@ -42,7 +42,6 @@ if(!battlePass.monthStart) battlePass.monthStart = Date.now();
 if(Date.now() - battlePass.monthStart > 2592000000) { battlePass = { monthStart: Date.now(), bosses: 0, claims: { 15: false, 30: false, 50: false, 100: false, 150: false } }; localStorage.setItem('survivorBattlePass', JSON.stringify(battlePass)); }
 
 export let selectedCharId = 0; export let savedName = localStorage.getItem('survivorPlayerName') || ""; export let activePlayerName = "Eroe";
-export let magoUnlocked = localStorage.getItem('survivorMagoUnlocked') === 'true';
 window.changeSelectedCharId = function(id) { selectedCharId = id; }; 
 
 export let chestImg = new Image(); chestImg.src = 'chest.png'; export let chestEpicImg = new Image(); chestEpicImg.src = 'chestepic.png';
