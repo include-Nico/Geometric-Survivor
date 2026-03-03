@@ -21,21 +21,18 @@ export function closeAllMenuModals() {
     document.getElementById('settings-modal').style.display = 'none';
     document.getElementById('missions-modal').style.display = 'none';
     document.getElementById('battlepass-modal').style.display = 'none';
-    // Riattiva i bottoni in alto quando si chiude un modale
     document.querySelectorAll('.top-icon-btn').forEach(btn => btn.style.display = 'flex');
 }
 
 export function showBattlePassModal() {
     closeAllMenuModals();
-    // Nascondi i bottoni in alto
     document.querySelectorAll('.top-icon-btn').forEach(btn => btn.style.display = 'none');
-
     let container = document.getElementById('bp-tiers-container'); document.getElementById('bp-bosses-count').innerText = battlePass.bosses; document.getElementById('bp-progress-fill').style.width = Math.min((battlePass.bosses / 150) * 100, 100) + '%'; container.innerHTML = '';
     const tiers = [ { req: 15, rew: 200 }, { req: 30, rew: 400 }, { req: 50, rew: 600 }, { req: 100, rew: 800 }, { req: 150, rew: 1000 } ];
     tiers.forEach(t => {
         let isUnlocked = battlePass.bosses >= t.req; let isClaimed = battlePass.claims[t.req];
         let btnHtml = isClaimed ? `<button class="btn-claim" disabled>Riscattato ✅</button>` : isUnlocked ? `<button class="btn-claim" onclick="claimBattlePass(${t.req}, ${t.rew})">Riscuoti ${t.rew}💎</button>` : `<button class="btn-claim" disabled>Bloccato 🔒</button>`;
-        container.innerHTML += `<div class="bp-card"><div><p class="mission-title" style="color: ${isUnlocked ? '#00ff00' : '#fff'};">Sconfiggi ${t.req} Boss</p><p class="mission-reward" style="margin:0;">Premio: ${t.rew} 💎</p></div><div style="width: 120px;">${btnHtml}</div></div>`;
+        container.innerHTML += `<div class="bp-card"><div><p class="mission-title" style="color: ${isUnlocked ? '#ffd700' : '#aaa'}">Boss ${t.req}: ${t.rew} Cristalli 💎</p></div>${btnHtml}</div>`;
     });
     document.getElementById('battlepass-modal').style.display = 'block';
 }
@@ -47,16 +44,20 @@ export function closeBattlePassModal() {
 
 export function showMissionsModal() {
     closeAllMenuModals();
-    // Nascondi i bottoni in alto
     document.querySelectorAll('.top-icon-btn').forEach(btn => btn.style.display = 'none');
-
-    let container = document.getElementById('missions-container'); container.innerHTML = '';
-    let m1Prog = Math.min(dailyMissions.bossesKilled, 5); let m1Done = m1Prog >= 5;
-    container.innerHTML += `<div class="mission-card"><p class="mission-title">💀 Uccidi 5 Boss</p><p class="mission-reward">Premio: 100 💎</p><div class="mission-progress-bg"><div class="mission-progress-fill" style="width: ${(m1Prog/5)*100}%;"></div></div><p style="font-size:12px; margin-top:0; text-align:right;">${m1Prog}/5</p>${dailyMissions.claim1 ? '<button class="btn-claim" disabled>Completata ✅</button>' : `<button class="btn-claim" ${m1Done ? '' : 'disabled'} onclick="claimMission(1, 100)">Riscuoti</button>`}</div>`;
-    let m2Prog = Math.min(dailyMissions.levelsGained, 10); let m2Done = m2Prog >= 10;
-    container.innerHTML += `<div class="mission-card"><p class="mission-title">⬆️ Guadagna 10 Livelli</p><p class="mission-reward">Premio: 20 💎</p><div class="mission-progress-bg"><div class="mission-progress-fill" style="width: ${(m2Prog/10)*100}%;"></div></div><p style="font-size:12px; margin-top:0; text-align:right;">${m2Prog}/10</p>${dailyMissions.claim2 ? '<button class="btn-claim" disabled>Completata ✅</button>' : `<button class="btn-claim" ${m2Done ? '' : 'disabled'} onclick="claimMission(2, 20)">Riscuoti</button>`}</div>`;
-    let m3Prog = Math.min(dailyMissions.itemsBought, 1); let m3Done = m3Prog >= 1;
-    container.innerHTML += `<div class="mission-card"><p class="mission-title">🎒 Acquista 1 Oggetto</p><p class="mission-reward">Premio: 50 💎</p><div class="mission-progress-bg"><div class="mission-progress-fill" style="width: ${(m3Prog/1)*100}%;"></div></div><p style="font-size:12px; margin-top:0; text-align:right;">${m3Prog}/1</p>${dailyMissions.claim3 ? '<button class="btn-claim" disabled>Completata ✅</button>' : `<button class="btn-claim" ${m3Done ? '' : 'disabled'} onclick="claimMission(3, 50)">Riscuoti</button>`}</div>`;
+    let m1Done = dailyMissions.bossesKilled >= 5; let m2Done = dailyMissions.levelsGained >= 10; let m3Done = dailyMissions.itemsBought >= 1;
+    document.getElementById('missions-modal').innerHTML = `
+        <h2 style="color:#ffaa00; margin-top:0;">Missioni Giornaliere</h2>
+        <div class="mission-card"><p class="mission-title">⚔️ Sconfiggi 5 Boss (${Math.min(dailyMissions.bossesKilled,5)}/5)</p>
+        <div class="mission-progress-bg"><div class="mission-progress-fill" style="width:${Math.min(dailyMissions.bossesKilled/5*100,100)}%"></div></div>
+        ${dailyMissions.claim1 ? '<button class="btn-claim" disabled>Completata ✅</button>' : `<button class="btn-claim" ${m1Done ? '' : 'disabled'} onclick="claimMission(1, 30)">Riscuoti</button>`}</div>
+        <div class="mission-card"><p class="mission-title">⬆️ Raggiungi 10 Livelli (${Math.min(dailyMissions.levelsGained,10)}/10)</p>
+        <div class="mission-progress-bg"><div class="mission-progress-fill" style="width:${Math.min(dailyMissions.levelsGained/10*100,100)}%"></div></div>
+        ${dailyMissions.claim2 ? '<button class="btn-claim" disabled>Completata ✅</button>' : `<button class="btn-claim" ${m2Done ? '' : 'disabled'} onclick="claimMission(2, 20)">Riscuoti</button>`}</div>
+        <div class="mission-card"><p class="mission-title">🛒 Acquista 1 Equipaggiamento (${Math.min(dailyMissions.itemsBought,1)}/1)</p>
+        <div class="mission-progress-bg"><div class="mission-progress-fill" style="width:${Math.min(dailyMissions.itemsBought/1*100,100)}%"></div></div>
+        ${dailyMissions.claim3 ? '<button class="btn-claim" disabled>Completata ✅</button>' : `<button class="btn-claim" ${m3Done ? '' : 'disabled'} onclick="claimMission(3, 50)">Riscuoti</button>`}</div>
+        <button class="upgrade-btn" style="background: linear-gradient(#800, #500); border-color: #f00; margin-top:20px;" onclick="closeMissionsModal()"><span class="upgrade-title">Chiudi</span></button>`;
     document.getElementById('missions-modal').style.display = 'block';
 }
 
@@ -67,9 +68,7 @@ export function closeMissionsModal() {
 
 export function showSettingsModal() { 
     closeAllMenuModals(); 
-    // Nascondi i bottoni in alto
     document.querySelectorAll('.top-icon-btn').forEach(btn => btn.style.display = 'none');
-
     document.getElementById('stat-enemies').innerText = gameStats.enemiesKilled; 
     document.getElementById('stat-bosses').innerText = gameStats.bossesKilled; 
     document.getElementById('stat-maxlevel').innerText = gameStats.maxLevelReached; 
@@ -115,14 +114,11 @@ export function showCharacterSelect() {
         } else { 
             isUnlocked = maxLevelReached >= char.reqLevel; 
         }
-
         let isSelected = selectedCharId === char.id;
         let cLevel = charLevels[char.id] || 1; let stars = "⭐".repeat(cLevel) + "☆".repeat(3-cLevel);
         let wList = [...char.weapons]; if (cLevel >= 2) wList.push(char.lv2Weapon); 
-        let wNames = wList.map(w => WEAPONS_DB[w].name).join(", ");
         let card = document.createElement('div'); card.className = `char-card ${isUnlocked ? '' : 'locked'} ${isSelected ? 'selected' : ''}`;
         let upgHtml = ''; if (isUnlocked && cLevel < 3) { upgHtml = `<button class="btn-level-up" ${totalCrystals < 1000 ? 'disabled' : ''} onclick="event.stopPropagation(); upgradeChar(${char.id})">Level Up (1000💎)</button>`; } else if (cLevel === 3) { upgHtml = `<p style="color:gold; font-size:12px; margin-top:10px;">MAX LEVEL<br>Può impugnare 3 armi!</p>`; }
-        
         let lockMsg = '';
         if (!isUnlocked) {
             if (char.unlockType === 'boss30') { 
@@ -131,7 +127,6 @@ export function showCharacterSelect() {
                 lockMsg = `<div class="lock-icon">🔒<br><span style="font-size:14px;">Raggiungi Liv. ${char.reqLevel}</span></div>`; 
             }
         }
-
         let wLabel = cLevel >= 2 ? 'Armi disponibili' : 'Armi base';
         let wItems = wList.map(w => `<span class="w-tag">${WEAPONS_DB[w].name}</span>`).join('');
         card.innerHTML = `<div class="char-header"><div class="char-name">${char.name}</div><div class="char-stars">${stars}</div></div><div class="char-weapons-block"><span class="weapons-label">${wLabel}</span><div class="weapons-tags">${wItems}</div></div>${upgHtml}${lockMsg}`;
@@ -139,7 +134,23 @@ export function showCharacterSelect() {
     });
 }
 
-export function showMenu() { updateBadges(); document.getElementById('main-menu').style.display = 'flex'; document.getElementById('character-select').style.display = 'none'; document.getElementById('game-over-screen').style.display = 'none'; document.getElementById('game-ui').style.display = 'none'; document.getElementById('equipment-select').style.display = 'none'; canvas.style.display = 'none'; document.getElementById('player-name-input').value = savedName; }
+// ═══════════════════════════════════════════════════
+// FIX PULSANTI MENU: showMenu nasconde canvas E joystick-zone
+// ═══════════════════════════════════════════════════
+export function showMenu() {
+    updateBadges();
+    document.getElementById('main-menu').style.display = 'flex';
+    document.getElementById('character-select').style.display = 'none';
+    document.getElementById('game-over-screen').style.display = 'none';
+    document.getElementById('game-ui').style.display = 'none';
+    document.getElementById('equipment-select').style.display = 'none';
+    // Nascondi canvas e rimuovi pointer-events
+    canvas.style.display = 'none';
+    canvas.style.pointerEvents = 'none';
+    // Nascondi esplicitamente joystick-zone per sicurezza
+    document.getElementById('joystick-zone').style.display = 'none';
+    document.getElementById('player-name-input').value = savedName;
+}
 export function backToMenu() { showMenu(); }
 
 export function updateBarsUI(player) { document.getElementById('hp-bar-fill').style.width = (Math.max(0, player.hp) / player.maxHp * 100) + '%'; if(player.maxShield > 0) { document.getElementById('shield-bar-fill').style.width = (Math.max(0, player.shield) / player.maxShield * 100) + '%'; } }
