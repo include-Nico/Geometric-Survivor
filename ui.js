@@ -132,7 +132,9 @@ export function showCharacterSelect() {
             }
         }
 
-        card.innerHTML = `<h3>${char.name} <br><span style="font-size:14px; color:gold;">${stars}</span></h3><p style="color:#aaa; font-size:14px;">${char.desc}</p><div class="char-weapons-list">${wNames}</div><p style="color:#00ffff; font-size:12px;">Armi base</p>${upgHtml}${lockMsg}`;
+        let wLabel = cLevel >= 2 ? 'Armi disponibili' : 'Armi base';
+        let wItems = wList.map(w => `<span class="w-tag">${WEAPONS_DB[w].name}</span>`).join('');
+        card.innerHTML = `<div class="char-header"><div class="char-name">${char.name}</div><div class="char-stars">${stars}</div></div><div class="char-weapons-block"><span class="weapons-label">${wLabel}</span><div class="weapons-tags">${wItems}</div></div>${upgHtml}${lockMsg}`;
         if (isUnlocked) { card.onclick = () => { window.changeSelectedCharId(char.id); showCharacterSelect(); }; } container.appendChild(card);
     });
 }
