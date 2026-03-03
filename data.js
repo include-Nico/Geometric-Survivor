@@ -12,7 +12,27 @@ export const WEAPON_MODELS = {
     freezer: (ctx, s, c) => { ctx.fillStyle = "#eeeeee"; ctx.fillRect(0, -s/4, s*1.2, s/2); ctx.fillStyle = "#333333"; ctx.fillRect(0, s/4, s/2, s/1.5); ctx.fillStyle = c; ctx.beginPath(); ctx.arc(-s/4, 0, s/1.5, 0, Math.PI*2); ctx.fill(); },
     bastone_veleno: (ctx, s, c) => { ctx.fillStyle = "#4a5d23"; ctx.fillRect(-s, -s/10, s*3.5, s/5); ctx.fillStyle = c; ctx.shadowBlur = 15; ctx.shadowColor = c; ctx.beginPath(); ctx.arc(s*2.5, 0, s/2.5, 0, Math.PI*2); ctx.fill(); ctx.shadowBlur = 0; ctx.strokeStyle = "#113311"; ctx.lineWidth = 3; ctx.stroke(); },
     uzi: (ctx, s, c) => { ctx.fillStyle = "#555"; ctx.fillRect(0, -s/6, s*1.2, s/3); ctx.fillStyle = "#222"; ctx.fillRect(0, s/6, s/3, s/1.2); ctx.fillRect(s*0.8, s/6, s/4, s/2); },
-    cerbottana: (ctx, s, c) => { ctx.fillStyle = "#8b5a2b"; ctx.fillRect(-s/2, -s/8, s*2.5, s/4); ctx.fillStyle = "#333"; ctx.fillRect(s*1.8, -s/6, s/4, s/3); }
+    cerbottana: (ctx, s, c) => { ctx.fillStyle = "#8b5a2b"; ctx.fillRect(-s/2, -s/8, s*2.5, s/4); ctx.fillStyle = "#333"; ctx.fillRect(s*1.8, -s/6, s/4, s/3); },
+    fireball_wand: (ctx, s, c) => {
+        ctx.fillStyle = "#ff2200"; ctx.shadowBlur = 20; ctx.shadowColor = "#ff4400";
+        ctx.beginPath(); ctx.arc(s*1.5, 0, s*0.7, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#ffaa00"; ctx.shadowBlur = 10; ctx.shadowColor = "#ffaa00";
+        ctx.beginPath(); ctx.arc(s*1.5, 0, s*0.35, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0;
+    },
+    electric_orb: (ctx, s, c) => {
+        ctx.fillStyle = "#00aaff"; ctx.shadowBlur = 20; ctx.shadowColor = "#00ffff";
+        ctx.beginPath(); ctx.arc(s*1.5, 0, s*0.7, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#aaffff"; ctx.shadowBlur = 10; ctx.shadowColor = "#aaffff";
+        ctx.beginPath(); ctx.arc(s*1.5, 0, s*0.3, 0, Math.PI*2); ctx.fill();
+        ctx.shadowBlur = 0;
+    },
+    stone_orb: (ctx, s, c) => {
+        ctx.fillStyle = "#7a5c3a"; ctx.shadowBlur = 8; ctx.shadowColor = "#4a3020";
+        ctx.beginPath(); ctx.arc(s*1.5, 0, s*0.75, 0, Math.PI*2); ctx.fill();
+        ctx.fillStyle = "#a07850"; ctx.shadowBlur = 0;
+        ctx.beginPath(); ctx.arc(s*1.3, -s*0.2, s*0.3, 0, Math.PI*2); ctx.fill();
+    }
 };
 
 export const WEAPONS_DB = {
@@ -25,13 +45,17 @@ export const WEAPONS_DB = {
     freezer: { id: 'freezer', name: "Freezer", baseDamage: 20, fireRate: 35, range: 600, speed: 15, weaponSize: 20, bulletSize: 10, color: "#aaddff", muzzleOffset: 25 },
     bastone_veleno: { id: 'bastone_veleno', name: "Bastone Velenoso", baseDamage: 15, fireRate: 120, range: 150, speed: 0, weaponSize: 20, bulletSize: 0, color: "#00ff00", muzzleOffset: 0 }, 
     uzi: { id: 'uzi', name: "Uzi", baseDamage: 5, fireRate: 8, range: 500, speed: 18, weaponSize: 12, bulletSize: 3, color: "yellow", muzzleOffset: 15 },
-    cerbottana: { id: 'cerbottana', name: "Cerbottana", baseDamage: 2, fireRate: 20, range: 700, speed: 22, weaponSize: 20, bulletSize: 4, color: "#800080", muzzleOffset: 30, poisonDamage: 5 }
+    cerbottana: { id: 'cerbottana', name: "Cerbottana", baseDamage: 2, fireRate: 20, range: 700, speed: 22, weaponSize: 20, bulletSize: 4, color: "#800080", muzzleOffset: 30, poisonDamage: 5 },
+    fireball_wand: { id: 'fireball_wand', name: "Palla di Fuoco", baseDamage: 35, fireRate: 70, range: 700, speed: 9, weaponSize: 18, bulletSize: 14, color: "#ff4400", muzzleOffset: 30, explodeRadius: 80 },
+    electric_orb: { id: 'electric_orb', name: "Sfera Elettrica", baseDamage: 20, fireRate: 55, range: 650, speed: 11, weaponSize: 18, bulletSize: 12, color: "#00ccff", muzzleOffset: 30, chainMax: 4, chainRange: 150, chainDamage: 10 },
+    stone_orb: { id: 'stone_orb', name: "Sfera di Pietra", baseDamage: 25, fireRate: 110, range: 300, speed: 0, weaponSize: 18, bulletSize: 0, color: "#8B6544", muzzleOffset: 0, stoneHp: 80, stoneSize: 30 }
 };
 
 export const CHARACTERS = [ 
-    { id: 0, name: "Recluta", desc: "Corpo Quadrato", reqLevel: 1, weapons: ['pistola', 'fucile', 'bastone'], lv2Weapon: 'bastone_veleno' }, 
-    { id: 1, name: "Gelataio", desc: "Corpo a Cono", reqLevel: 10, weapons: ['pistola', 'laser', 'granata'], lv2Weapon: 'uzi' }, 
-    { id: 2, name: "Punta", desc: "Corpo Piramidale", reqLevel: 15, weapons: ['pistola', 'razzo', 'freezer'], lv2Weapon: 'cerbottana' } 
+    { id: 0, name: "Recluta", desc: "Corpo Quadrato", reqLevel: 1, weapons: ['pistola', 'fucile', 'bastone'], lv2Weapon: 'bastone_veleno', unlockType: 'level' }, 
+    { id: 1, name: "Gelataio", desc: "Corpo a Cono", reqLevel: 10, weapons: ['pistola', 'laser', 'granata'], lv2Weapon: 'uzi', unlockType: 'level' }, 
+    { id: 2, name: "Il Mago", desc: "Corpo Quadrato con Cappello", reqLevel: 15, weapons: ['pistola', 'fireball_wand', 'electric_orb'], lv2Weapon: 'stone_orb', unlockType: 'level' },
+    { id: 3, name: "Punta", desc: "Corpo Piramidale", reqLevel: 99, weapons: ['pistola', 'razzo', 'freezer'], lv2Weapon: 'cerbottana', unlockType: 'boss30' }
 ];
 
 export const EQUIP_DB = {
