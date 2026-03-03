@@ -992,20 +992,63 @@ function draw() {
 }
 
 // --- ESPOSIZIONE GLOBALE PER HTML (LOGICA E NEGOZIO) ---
-window.startGame = startGame;
-window.togglePause = togglePause;
-window.surrender = surrender;
-window.savePlayerName = savePlayerName;
-window.checkCheatCode = checkCheatCode;
-window.buyDoubleAmulet = buyDoubleAmulet;
-window.buyEquip = buyEquip;
-window.equipItem = equipItem;
-window.unequipItem = unequipItem;
-window.upgradeChar = upgradeChar;
-window.claimBattlePass = claimBattlePass;
-window.claimMission = claimMission;
-window.confirmReplace = confirmReplace;
-window.cancelReplace = cancelReplace;
+// --- BINDING PULSANTI (evita onclick nell'HTML con moduli ES) ---
+function bindButtons() {
+    // Menu principale
+    document.getElementById('btn-gioca').addEventListener('click', startGame);
+    document.getElementById('btn-personaggi').addEventListener('click', showCharacterSelect);
+    document.getElementById('btn-equip').addEventListener('click', showEquipmentMenu);
+    document.getElementById('btn-battlepass').addEventListener('click', showBattlePassModal);
+    document.getElementById('btn-missions').addEventListener('click', showMissionsModal);
+    document.getElementById('btn-settings').addEventListener('click', showSettingsModal);
+
+    // Back buttons
+    document.getElementById('btn-back-equip').addEventListener('click', backToMenu);
+    document.getElementById('btn-back-char').addEventListener('click', backToMenu);
+    document.getElementById('btn-back-gameover').addEventListener('click', backToMenu);
+
+    // Game over
+    document.getElementById('btn-rigioca').addEventListener('click', startGame);
+
+    // Pausa
+    document.getElementById('pause-btn').addEventListener('click', togglePause);
+    document.getElementById('btn-resume').addEventListener('click', togglePause);
+    document.getElementById('btn-surrender').addEventListener('click', surrender);
+
+    // Modali chiusura
+    document.getElementById('btn-close-bp').addEventListener('click', closeBattlePassModal);
+    document.getElementById('btn-close-settings').addEventListener('click', closeSettingsModal);
+    document.getElementById('btn-close-missions').addEventListener('click', closeMissionsModal);
+
+    // Settings tabs
+    document.getElementById('tab-btn-cheat').addEventListener('click', () => switchSettingsTab('cheat'));
+    document.getElementById('tab-btn-stats').addEventListener('click', () => switchSettingsTab('stats'));
+    document.getElementById('btn-cheat-confirm').addEventListener('click', checkCheatCode);
+
+    // Replace modal
+    document.getElementById('rep-btn0').addEventListener('click', () => confirmReplace(0));
+    document.getElementById('rep-btn1').addEventListener('click', () => confirmReplace(1));
+    document.getElementById('rep-btn2').addEventListener('click', () => confirmReplace(2));
+    document.getElementById('btn-cancel-replace').addEventListener('click', cancelReplace);
+
+    // Input nome
+    document.getElementById('player-name-input').addEventListener('keyup', savePlayerName);
+    document.getElementById('player-name-input').addEventListener('blur', savePlayerName);
+
+    // Esponi ancora window.xxx per le funzioni chiamate dinamicamente dall'HTML generato (claimBattlePass, buyEquip, ecc.)
+    window.claimBattlePass = claimBattlePass;
+    window.claimMission = claimMission;
+    window.buyEquip = buyEquip;
+    window.buyDoubleAmulet = buyDoubleAmulet;
+    window.equipItem = equipItem;
+    window.unequipItem = unequipItem;
+    window.upgradeChar = upgradeChar;
+    window.changeSelectedCharId = (id) => { selectedCharId = id; };
+    window.closeEpicModal = closeEpicModal;
+    window.closeBossModal = closeBossModal;
+}
 
 // INIZIALIZZA TUTTO AL CARICAMENTO
 showMenu();
+bindButtons();
+
