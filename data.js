@@ -56,7 +56,7 @@ export const CHARACTERS = [
     { id: 0, name: "Recluta",  desc: "Corpo Quadrato",              reqLevel: 1,  weapons: ['pistola', 'fucile', 'bastone'],            lv2Weapon: 'bastone_veleno', unlockType: 'level' }, 
     { id: 1, name: "Punta",    desc: "Corpo Piramidale",            reqLevel: 10, weapons: ['pistola', 'razzo', 'freezer'],              lv2Weapon: 'cerbottana',     unlockType: 'level' }, 
     { id: 2, name: "Gelataio", desc: "Corpo a Cono",                reqLevel: 15, weapons: ['pistola', 'laser', 'granata'],              lv2Weapon: 'uzi',            unlockType: 'level' }, 
-    { id: 3, name: "Il Mago",  desc: "Corpo Quadrato con Cappello", reqLevel: 999,weapons: ['pistola', 'fireball_wand', 'electric_orb'], lv2Weapon: 'stone_orb',      unlockType: 'boss30' } 
+    { id: 3, name: "Il Mago",  desc: "Corpo Quadrato con Cappello", reqLevel: 999,weapons: ['uzi', 'fireball_wand', 'electric_orb'], lv2Weapon: 'stone_orb',      unlockType: 'boss30' } 
 ];
 
 export const EQUIP_DB = {
