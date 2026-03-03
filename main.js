@@ -382,6 +382,9 @@ function update() {
                 w.fireTimer = 0; return;
             }
             let targets = enemies.filter(t => Math.hypot(t.x - player.x, t.y - player.y) <= w.range);
+            if (targets.length > 0) {
+                let closest = targets.reduce((prev, curr) => Math.hypot(curr.x - player.x, curr.y - player.y) < Math.hypot(prev.x - player.x, prev.y - player.y) ? curr : prev);
+                let angle = Math.atan2(closest.y - player.y, closest.x - player.x);
                 let handOffsetX = 15; let handOffsetY = 0; 
                 if (index === 0) handOffsetY = 15; else if (index === 1) handOffsetY = -15; else if (index === 2) { handOffsetX = 25; handOffsetY = 0; }
                 let cosA = Math.cos(angle); let sinA = Math.sin(angle);
