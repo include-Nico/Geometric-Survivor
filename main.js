@@ -381,10 +381,7 @@ function update() {
                 }
                 w.fireTimer = 0; return;
             }
-            let targets = enemies.concat(rocks).filter(t => Math.hypot(t.x - player.x, t.y - player.y) <= w.range);
-            if (targets.length > 0) {
-                let closest = targets.reduce((prev, curr) => Math.hypot(curr.x - player.x, curr.y - player.y) < Math.hypot(prev.x - player.x, prev.y - player.y) ? curr : prev);
-                let angle = Math.atan2(closest.y - player.y, closest.x - player.x);
+            let targets = enemies.filter(t => Math.hypot(t.x - player.x, t.y - player.y) <= w.range);
                 let handOffsetX = 15; let handOffsetY = 0; 
                 if (index === 0) handOffsetY = 15; else if (index === 1) handOffsetY = -15; else if (index === 2) { handOffsetX = 25; handOffsetY = 0; }
                 let cosA = Math.cos(angle); let sinA = Math.sin(angle);
@@ -448,19 +445,30 @@ function update() {
                 let et = enemies[ei2];
                 if (!et.dead && Math.hypot(b.x - et.x, b.y - et.y) < et.size + b.size) {
                     et.hp -= b.damage; et.hitTimer = 5;
-                    et.frozenTimer = 40; et.speed = et.originalSpeed * 0.5; // stun breve
+                    et.frozenTimer = 40; et.speed = et.originalSpeed * 0.5;
                     if (et.hp <= 0 && !et.dead) { et.dead = true; handleEnemyDeath(et, ei2); }
-                    // Chain: colpisci fino a chainMax nemici vicini
-                    let chained = 0; let maxChain = b.chainMax || 4;
-                    enemies.forEach(en => {
-                        if (!en.dead && en !== et && chained < maxChain && Math.hypot(en.x - et.x, en.y - et.y) < (b.chainRange || 150)) {
-                            en.hp -= (b.chainDamage || 10); en.hitTimer = 5;
-                            en.frozenTimer = 30; en.speed = en.originalSpeed * 0.6;
-                            if (en.hp <= 0 && !en.dead) { en.dead = true; handleEnemyDeath(en, -1); }
-                            electricArcs.push({ x1: et.x, y1: et.y, x2: en.x, y2: en.y, life: 8 });
-                            chained++;
-                        }
-                    });
+                    // Catena sequenziale A->B->C->D: ogni salto trova il nemico più vicino non ancora colpito
+                    let maxChain = b.chainMax || 3;
+                    let chainRange = b.chainRange || 150;
+                    let lastHit = et;
+                    let alreadyHit = new Set([et]);
+                    for (let c = 0; c < maxChain; c++) {
+                        let nextTarget = null; let bestDist = Infinity;
+                        enemies.forEach(en => {
+                            if (!en.dead && !alreadyHit.has(en)) {
+                                let d = Math.hypot(en.x - lastHit.x, en.y - lastHit.y);
+                                if (d < chainRange && d < bestDist) { bestDist = d; nextTarget = en; }
+                            }
+                        });
+                        if (!nextTarget) break;
+                        let dmg = (b.chainDamage || 10) * Math.pow(0.75, c);
+                        nextTarget.hp -= dmg; nextTarget.hitTimer = 5;
+                        nextTarget.frozenTimer = 35; nextTarget.speed = nextTarget.originalSpeed * 0.5;
+                        if (nextTarget.hp <= 0 && !nextTarget.dead) { nextTarget.dead = true; handleEnemyDeath(nextTarget, -1); }
+                        electricArcs.push({ x1: lastHit.x, y1: lastHit.y, x2: nextTarget.x, y2: nextTarget.y, life: 14, maxLife: 14 });
+                        alreadyHit.add(nextTarget);
+                        lastHit = nextTarget;
+                    }
                     hitEnemy = true;
                     bullets.splice(i, 1); break;
                 }
@@ -568,10 +576,6 @@ function update() {
     for (let i = rocks.length - 1; i >= 0; i--) { if(rocks[i].dead) { rocks.splice(i,1); } else if (Math.hypot(player.x - rocks[i].x, player.y - rocks[i].y) > 2000) rocks.splice(i, 1); }
     while(rocks.length < 15) { let valid = false; let attempts = 0; let rx, ry, rSize; while(!valid && attempts < 10) { let angle = Math.random() * Math.PI * 2; rx = player.x + Math.cos(angle) * (1000 + Math.random() * 500); ry = player.y + Math.sin(angle) * (1000 + Math.random() * 500); rSize = 25 + Math.random() * 20; valid = isPositionFree(rx, ry, rSize); attempts++; } if (valid) rocks.push({ x: rx, y: ry, size: rSize, hp: 30 }); }
 
-    // Aggiorna archi elettrici (già gestiti da electricArcs)
-    electricArcs.forEach(ec => ec.life--);
-    electricArcs = electricArcs.filter(ec => ec.life > 0);
-    
     let spawnDelay = Math.max(30, 120 - (level * 10)); 
     if (bossArena.active) spawnDelay *= 5; 
 
@@ -776,24 +780,41 @@ function draw() {
             ctx.shadowBlur = 10; ctx.shadowColor = '#8B6040';
             ctx.beginPath(); ctx.arc(mx, my, r.size, 0, Math.PI*2); ctx.fill(); ctx.stroke();
             ctx.shadowBlur = 0;
-            // HP bar
-            let hpR = r.hp / (r.maxHp || r.hp);
-            ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(mx - r.size, my - r.size - 8, r.size*2, 4);
-            ctx.fillStyle = hpR > 0.5 ? '#a07040' : '#ff6600'; ctx.fillRect(mx - r.size, my - r.size - 8, r.size*2*Math.max(0,hpR), 4);
         } else {
             ctx.fillStyle = '#666'; ctx.strokeStyle = '#444'; ctx.lineWidth = 4;
             ctx.beginPath(); ctx.arc(mx, my, r.size, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+            // Barra HP solo per rocce normali
+            let hpPct = r.hp / 30;
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(mx - r.size, my - r.size - 10, r.size * 2, 5);
+            ctx.fillStyle = hpPct > 0.5 ? '#4f4' : '#f84';
+            ctx.fillRect(mx - r.size, my - r.size - 10, r.size * 2 * hpPct, 5);
         }
     });
     
-    // Chain lightning arcs
+    // Chain lightning arcs - fulmine zigzag animato
     electricArcs.forEach(ec => {
-        let alpha = ec.life / 8;
-        ctx.strokeStyle = `rgba(0, 200, 255, ${alpha})`; ctx.lineWidth = 2 + alpha * 3;
-        ctx.shadowBlur = 15; ctx.shadowColor = '#00ccff';
-        ctx.setLineDash([4, 4]);
-        ctx.beginPath(); ctx.moveTo(ec.x1 - camX, ec.y1 - camY); ctx.lineTo(ec.x2 - camX, ec.y2 - camY); ctx.stroke();
-        ctx.setLineDash([]); ctx.shadowBlur = 0;
+        let alpha = ec.life / (ec.maxLife || 8);
+        let x1 = ec.x1 - camX; let y1 = ec.y1 - camY;
+        let x2 = ec.x2 - camX; let y2 = ec.y2 - camY;
+        let dx = x2 - x1; let dy = y2 - y1;
+        let len = Math.sqrt(dx*dx + dy*dy) || 1;
+        let perpX = -dy / len; let perpY = dx / len;
+        let segs = Math.max(5, Math.floor(len / 14));
+        ctx.strokeStyle = 'rgba(80, 220, 255, ' + alpha + ')'; ctx.lineWidth = 1.5 + alpha * 2.5;
+        ctx.shadowBlur = 8 + alpha * 14; ctx.shadowColor = '#00eeff';
+        ctx.setLineDash([]);
+        ctx.beginPath(); ctx.moveTo(x1, y1);
+        for (let s = 1; s < segs; s++) {
+            let t = s / segs;
+            let px = x1 + dx * t; let py = y1 + dy * t;
+            let offset = (Math.sin(t * Math.PI * 4 + frameCount * 0.55 + ec.x1 * 0.02) * 10 + Math.cos(t * 8 + frameCount * 0.3) * 5) * alpha;
+            ctx.lineTo(px + perpX * offset, py + perpY * offset);
+        }
+        ctx.lineTo(x2, y2); ctx.stroke();
+        ctx.strokeStyle = 'rgba(220, 245, 255, ' + (alpha * 0.55) + ')'; ctx.lineWidth = 0.7; ctx.shadowBlur = 3;
+        ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+        ctx.shadowBlur = 0;
     });
     
     explosions.forEach(exp => { 
@@ -885,7 +906,7 @@ function draw() {
             angle = -Math.PI / 2; 
             if (w.fireTimer < 20) { angle = 0 - (Math.PI / 2) * (w.fireTimer / 20); }
         } else {
-            let targets = enemies.concat(rocks).filter(t => Math.hypot(t.x - player.x, t.y - player.y) <= w.range);
+            let targets = enemies.filter(t => Math.hypot(t.x - player.x, t.y - player.y) <= w.range);
             if (targets.length > 0) { 
                 let closest = targets.reduce((prev, curr) => Math.hypot(curr.x - player.x, curr.y - player.y) < Math.hypot(prev.x - player.x, prev.y - player.y) ? curr : prev); 
                 angle = Math.atan2(closest.y - player.y, closest.x - player.x); 
@@ -985,4 +1006,3 @@ window.cancelReplace = cancelReplace;
 
 // INIZIALIZZA TUTTO AL CARICAMENTO
 showMenu();
-
