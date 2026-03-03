@@ -6,7 +6,7 @@ import { CHARACTERS, EQUIP_DB, WEAPONS_DB } from './data.js';
 import { 
     totalCrystals, battlePass, dailyMissions, gameStats, cheatUnlocked, 
     unlockedEquip, equippedItems, hasDoubleAmulet, charLevels, selectedCharId,
-    maxLevelReached, savedName, canvas 
+    maxLevelReached, savedName, canvas, puntaUnlocked
 } from './main.js';
 
 export function updateBadges() {
@@ -107,13 +107,27 @@ export function showCharacterSelect() {
     document.getElementById('main-menu').style.display = 'none'; document.getElementById('character-select').style.display = 'flex'; document.getElementById('char-crystal-count').innerText = totalCrystals;
     const container = document.getElementById('char-cards-container'); container.innerHTML = '';
     CHARACTERS.forEach(char => {
-        let isUnlocked = cheatUnlocked || maxLevelReached >= char.reqLevel; let isSelected = selectedCharId === char.id;
+        // Logica sblocco: cheat OR (condizione speciale OR livello)
+        let isUnlocked = false;
+        if (cheatUnlocked) { isUnlocked = true; }
+        else if (char.unlockType === 'boss30') { isUnlocked = puntaUnlocked || gameStats.bossesKilled >= 30; }
+        else { isUnlocked = maxLevelReached >= char.reqLevel; }
+
+        let isSelected = selectedCharId === char.id;
         let cLevel = charLevels[char.id] || 1; let stars = "⭐".repeat(cLevel) + "☆".repeat(3-cLevel);
         let wList = [...char.weapons]; if (cLevel >= 2) wList.push(char.lv2Weapon); 
         let wNames = wList.map(w => WEAPONS_DB[w].name).join(", ");
         let card = document.createElement('div'); card.className = `char-card ${isUnlocked ? '' : 'locked'} ${isSelected ? 'selected' : ''}`;
         let upgHtml = ''; if (isUnlocked && cLevel < 3) { upgHtml = `<button class="btn-level-up" ${totalCrystals < 1000 ? 'disabled' : ''} onclick="event.stopPropagation(); upgradeChar(${char.id})">Level Up (1000💎)</button>`; } else if (cLevel === 3) { upgHtml = `<p style="color:gold; font-size:12px; margin-top:10px;">MAX LEVEL<br>Può impugnare 3 armi!</p>`; }
-        card.innerHTML = `<h3>${char.name} <br><span style="font-size:14px; color:gold;">${stars}</span></h3><p style="color:#aaa; font-size:14px;">${char.desc}</p><div class="char-weapons-list">${wNames}</div><p style="color:#00ffff; font-size:12px;">Armi base</p>${upgHtml}${!isUnlocked ? `<div class="lock-icon">🔒<br><span style="font-size:14px;">Liv. ${char.reqLevel}</span></div>` : ''}`;
+        
+        // Messaggio di sblocco personalizzato
+        let lockMsg = '';
+        if (!isUnlocked) {
+            if (char.unlockType === 'boss30') { lockMsg = `<div class="lock-icon">⚔️<br><span style="font-size:12px;">Sconfiggi 30 Boss</span></div>`; }
+            else { lockMsg = `<div class="lock-icon">🔒<br><span style="font-size:14px;">Liv. ${char.reqLevel}</span></div>`; }
+        }
+
+        card.innerHTML = `<h3>${char.name} <br><span style="font-size:14px; color:gold;">${stars}</span></h3><p style="color:#aaa; font-size:14px;">${char.desc}</p><div class="char-weapons-list">${wNames}</div><p style="color:#00ffff; font-size:12px;">Armi base</p>${upgHtml}${lockMsg}`;
         if (isUnlocked) { card.onclick = () => { window.changeSelectedCharId(char.id); showCharacterSelect(); }; } container.appendChild(card);
     });
 }
