@@ -1,6 +1,6 @@
 // ==========================================
 // file: main.js
-// =========================================
+// ==========================================
 
 import { WEAPON_MODELS, WEAPONS_DB, CHARACTERS, EQUIP_DB } from './data.js';
 import { 
@@ -985,4 +985,3 @@ window.cancelReplace = cancelReplace;
 
 // INIZIALIZZA TUTTO AL CARICAMENTO
 showMenu();
-
