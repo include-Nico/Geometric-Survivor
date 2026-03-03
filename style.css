@@ -123,7 +123,7 @@ canvas {
 /* ---------- Titolo ---------- */
 .game-title {
   font-family: var(--fh);
-  font-size: clamp(22px, 5vw, 50px);
+  font-size: clamp(36px, 7vw, 72px);
   font-weight: 900;
   color: var(--cyan);
   text-shadow: 0 0 12px var(--cyan), 0 0 35px rgba(0,245,255,0.4), 3px 3px 0 rgba(0,0,0,0.8);
@@ -174,8 +174,8 @@ h2 {
 /* ---------- Bottoni menu ---------- */
 .menu-btn {
   background: linear-gradient(135deg, rgba(0,25,55,0.92), rgba(0,10,28,0.96));
-  border: 2px solid rgba(0,245,255,0.38);
-  color: #fff;
+  border: 2px solid rgba(0,245,255,0.55);
+  color: var(--cyan);
   font-family: var(--fh);
   font-size: 15px;
   font-weight: 700;
@@ -826,6 +826,15 @@ h2 {
     transform: skew(0);
   }
 }
+
+/* ---------- Char card components ---------- */
+.char-header { display: flex; flex-direction: column; align-items: center; gap: 5px; margin-bottom: 14px; }
+.char-name { font-family: var(--fh); font-size: 15px; font-weight: 700; color: #fff; letter-spacing: 1px; }
+.char-stars { font-size: 15px; letter-spacing: 3px; }
+.char-weapons-block { margin: 0 0 12px; text-align: center; }
+.weapons-label { display: block; font-family: var(--fh); font-size: 9px; color: rgba(0,245,255,0.5); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+.weapons-tags { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; }
+.w-tag { background: rgba(0,245,255,0.07); border: 1px solid rgba(0,245,255,0.25); color: var(--cyan); font-family: var(--fb); font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; white-space: nowrap; }
 
 /* ---------- Mobile ---------- */
 @media (max-width: 768px) {
