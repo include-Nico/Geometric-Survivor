@@ -284,7 +284,24 @@ function update() {
             }
         }
     }
-    for (let r of rocks) { if (Math.hypot((player.x + moveX) - r.x, player.y - r.y) < player.size + r.size) canMoveX = false; if (Math.hypot(player.x - r.x, (player.y + moveY) - r.y) < player.size + r.size) canMoveY = false; }
+    for (let r of rocks) {
+        let d = Math.hypot((player.x + moveX) - r.x, (player.y + moveY) - r.y);
+        if (d < player.size + r.size) {
+            // Prova solo X
+            let dx2 = Math.hypot((player.x + moveX) - r.x, player.y - r.y);
+            let dy2 = Math.hypot(player.x - r.x, (player.y + moveY) - r.y);
+            if (dx2 < player.size + r.size) canMoveX = false;
+            if (dy2 < player.size + r.size) canMoveY = false;
+            // Sicurezza anti-incastro: se già sovrapposti spingi fuori
+            let dNow = Math.hypot(player.x - r.x, player.y - r.y);
+            if (dNow < player.size + r.size) {
+                let pushA = Math.atan2(player.y - r.y, player.x - r.x);
+                let overlap = (player.size + r.size) - dNow + 1;
+                player.x += Math.cos(pushA) * overlap;
+                player.y += Math.sin(pushA) * overlap;
+            }
+        }
+    }
     if (canMoveX) player.x += moveX; if (canMoveY) player.y += moveY;
 
     if (player.maxShield > 0) { 
@@ -349,18 +366,18 @@ function update() {
                 explosions.push({x: player.x, y: player.y, radius: pRadius, damage: w.currentDamage, life: 15, maxLife: 15, type: 'poison'});
                 w.fireTimer = 0; return; 
             }
-            // Sfera di pietra del Mago: spawna un muro di pietre intorno al giocatore
+            // Sfera di pietra del Mago: spawna 1 pietra alla volta lontano dal giocatore
             if (w.id === 'stone_orb') {
-                let numStones = 3 + Math.floor(w.level * 0.5);
-                let spawnRadius = 90;
-                for (let si = 0; si < numStones; si++) {
-                    let sAngle = (Math.PI * 2 / numStones) * si + Math.random() * 0.3;
-                    let sx = player.x + Math.cos(sAngle) * spawnRadius;
-                    let sy = player.y + Math.sin(sAngle) * spawnRadius;
-                    let stoneSize = w.stoneSize || 30;
-                    let stoneHp = (w.stoneHp || 80) + w.level * 20;
-                    // Preavviso spown
-                    rockTelegraphs.push({ x: sx, y: sy, radius: stoneSize, timer: 40, isMageStone: true, stoneHp: stoneHp, stoneSize: stoneSize, stoneDamage: w.currentDamage });
+                let stoneSize = w.stoneSize || 30;
+                let stoneHp = (w.stoneHp || 80) + w.level * 20;
+                // Spawn distante dal giocatore (150-220px) in direzione casuale
+                let spawnRadius = 160 + Math.random() * 60;
+                let sAngle = Math.random() * Math.PI * 2;
+                let sx = player.x + Math.cos(sAngle) * spawnRadius;
+                let sy = player.y + Math.sin(sAngle) * spawnRadius;
+                // Non spawnare se troppo vicino al giocatore (sicurezza extra)
+                if (Math.hypot(sx - player.x, sy - player.y) > player.size + stoneSize + 20) {
+                    rockTelegraphs.push({ x: sx, y: sy, radius: stoneSize, timer: 50, isMageStone: true, stoneHp: stoneHp, stoneSize: stoneSize, stoneDamage: w.currentDamage });
                 }
                 w.fireTimer = 0; return;
             }
