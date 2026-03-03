@@ -121,7 +121,12 @@ function startGame() {
     bossArena = { active: false, x: 0, y: 0, radius: 800 };
     
     for(let i = 0; i < 15; i++) { let valid = false; let attempts = 0; let rx, ry, rSize; while(!valid && attempts < 10) { let angle = Math.random() * Math.PI * 2; let dist = 300 + Math.random() * 1500; rx = Math.cos(angle) * dist; ry = Math.sin(angle) * dist; rSize = 25 + Math.random() * 20; valid = isPositionFree(rx, ry, rSize); attempts++; } if (valid) rocks.push({ x: rx, y: ry, size: rSize, hp: 30 }); }
-    giveWeapon(WEAPONS_DB.pistola); updateBarsUI(player); document.getElementById('lvl').innerText = level; document.getElementById('shield-ui').style.display = 'none'; 
+    
+    // Assegna la prima arma corrispondente al personaggio selezionato (es. uzi per il Mago, pistola per gli altri)
+    let startingWeaponId = CHARACTERS.find(c => c.id === selectedCharId).weapons[0];
+    giveWeapon(WEAPONS_DB[startingWeaponId]); 
+
+    updateBarsUI(player); document.getElementById('lvl').innerText = level; document.getElementById('shield-ui').style.display = 'none'; 
     
     requestAnimationFrame(gameLoop);
 }
