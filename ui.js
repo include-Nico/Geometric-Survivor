@@ -126,9 +126,9 @@ export function showCharacterSelect() {
         let lockMsg = '';
         if (!isUnlocked) {
             if (char.unlockType === 'boss30') { 
-                lockMsg = `<div class="lock-icon">🧙<br><span style="font-size:12px;">Sconfiggi 30 Boss<br>(${gameStats.bossesKilled}/30)</span></div>`; 
+                lockMsg = `<div class="lock-icon"><br><span style="font-size:12px;">Sconfiggi 30 Boss<br>(${gameStats.bossesKilled}/30)</span></div>`; 
             } else { 
-                lockMsg = `<div class="lock-icon">🔒<br><span style="font-size:14px;">Raggiungi Liv. ${char.reqLevel}</span></div>`; 
+                lockMsg = `<div class="lock-icon"><br><span style="font-size:14px;">Raggiungi Liv. ${char.reqLevel}</span></div>`; 
             }
         }
 
